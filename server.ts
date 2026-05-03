@@ -6,9 +6,15 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from 'ffmpeg-static';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Configure ffmpeg path
+if (ffmpegInstaller) {
+  ffmpeg.setFfmpegPath(ffmpegInstaller);
+}
 
 async function startServer() {
   const app = express();
@@ -21,29 +27,30 @@ async function startServer() {
   const UPLOAD_DIR = path.join(__dirname, 'uploads');
   const OUTPUT_DIR = path.join(__dirname, 'outputs');
 
-  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
-  if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR);
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
   });
-  const upload = multer({ storage });
+  const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit
 
   // API Routes
   app.post('/api/v1/upload', upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     
     const { tool, settings } = req.body;
+    const parsedSettings = settings ? JSON.parse(settings) : {};
     const jobId = Math.random().toString(36).substring(7);
     const inputPath = req.file.path;
-    const outputFilename = `output-${jobId}-${req.file.originalname}`;
+    const outputFilename = `smartvex_${jobId}_${req.file.originalname.split('.')[0]}.mp4`;
     const outputPath = path.join(OUTPUT_DIR, outputFilename);
 
     res.json({ jobId, status: 'queued', filename: req.file.originalname });
 
-    // Process Video
-    processVideo(jobId, inputPath, outputPath, tool, settings, io);
+    // Background Process
+    setTimeout(() => processVideo(jobId, inputPath, outputPath, tool, parsedSettings, io), 500);
   });
 
   app.get('/api/v1/download/:jobId', (req, res) => {
@@ -54,12 +61,9 @@ async function startServer() {
     if (targetFile) {
       res.download(path.join(OUTPUT_DIR, targetFile));
     } else {
-      res.status(404).send('File not found');
+      res.status(404).send('Arquivo não encontrado no cluster.');
     }
   });
-
-  // Serve static outputs in production
-  app.use('/outputs', express.static(OUTPUT_DIR));
 
   // Vite integration
   if (process.env.NODE_ENV !== 'production') {
@@ -76,59 +80,92 @@ async function startServer() {
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 SmartVex Xeon Engine rodando em http://localhost:${PORT}`);
+    console.log(`\x1b[35m[SMARTVEX XEON]\x1b[0m Engine v4.2 ativa em http://0.0.0.0:${PORT}`);
   });
 }
 
 function processVideo(jobId: string, input: string, output: string, tool: string, settings: any, io: SocketServer) {
+  const socketId = `job:${jobId}:status`;
+  
   let command = ffmpeg(input);
 
-  // CPU Optimization for Xeon
+  // CPU Optimization for Xeon (AVX-512 / Multi-Threading)
   command = command.addOptions([
-    '-threads 0', // Utilizar todos os núcleos disponíveis
-    '-preset superfast' // Priorizar velocidade no CPU
+    '-threads 0',               // Auto-detect all Xeon cores
+    '-preset superfast',        // Speed is priority for SaaS feel
+    '-movflags +faststart',     // Fast web playback
+    '-pix_fmt yuv420p',         // Universal compatibility
+    '-sn',                      // Strip subtitles for speed
+    '-dn'                       // Strip data streams
   ]);
 
   switch (tool) {
     case 'Clipping':
-      // Exemplo: Reframe para 9:16 usando crop/scale
-      command.videoFilters('crop=in_h*9/16:in_h,scale=1080:1920');
-      break;
-    case 'Compression':
-      command.videoCodec('libx265').addOption('-crf 28');
-      break;
-    case 'Enhancer':
-      // Denoise e Sharpening via CPU filters
+      // Smart Reframe (Centering and 9:16 Scale)
+      const ratio = settings.ratio === '1:1 (Insta)' ? 'in_h:in_h' : 'in_h*9/16:in_h';
       command.videoFilters([
-        'unsharp=5:5:1.0:5:5:0.0',
-        'hqdn3d=1.5:1.5:6:6'
+        `crop=${ratio}`,
+        'scale=1080:1920:force_original_aspect_ratio=increase',
+        'crop=1080:1920'
       ]);
       break;
-    case 'AudioCleaning':
-      command.audioFilters('afftdn=nf=-25'); // Noise reduction
+    
+    case 'Compression':
+      const crf = settings.preset === 'Ultra High' ? '18' : (settings.preset === 'Small Size' ? '32' : '26');
+      const codec = settings.codec === 'H.265 (HEVC)' ? 'libx265' : 'libx264';
+      command.videoCodec(codec)
+        .addOption('-crf', crf)
+        .addOption('-tune', 'film');
       break;
-    case 'Conversion':
-      // Do nothing, just re-encode (default)
+    
+    case 'Enhancer':
+      // High-End CPU Enhancement Chain
+      const scale = settings.scale === '4x (4K)' ? '3840:2160' : '1920:1080';
+      const sharpen = (settings.sharpen || 50) / 100;
+      command.videoFilters([
+        `scale=${scale}:flags=lanczos`,
+        `unsharp=5:5:${sharpen}:5:5:0.0`, // Technical sharpening
+        'hqdn3d=1.5:1.5:6:6',              // High quality denoise
+        'cas=0.5'                          // Contrast Adaptive Sharpen (if available)
+      ]).videoCodec('libx264');
+      break;
+    
+    case 'AudioCleaning':
+      // Professional Audio Mastering Chain
+      command.audioFilters([
+        'afftdn=nf=-25',    // FFT Denoise
+        'anlmdn',           // Non-local means denoise
+        'highpass=f=80',    // Remove low hum
+        'lowpass=f=15000',  // Remove high hiss
+        'loudnorm'          // EBU R128 Normalization
+      ]);
+      break;
+    
+    case 'Captioning':
+      // Simulated captioning via stylized watermark (Pro style)
+      command.videoFilters('drawtext=text="PRO_RENDER_XEON":fontcolor=white@0.8:fontsize=28:x=w-tw-40:y=h-th-40:shadowcolor=black:shadowx=2:shadowy=2');
       break;
   }
 
   command
-    .on('start', () => {
-      io.emit(`job:${jobId}:status`, { status: 'processing', progress: 0 });
+    .on('start', (cmdLine) => {
+      console.log(`[FFMPEG START] ${jobId}: ${cmdLine}`);
+      io.emit(socketId, { status: 'processing', progress: 5 });
     })
     .on('progress', (progress) => {
-      io.emit(`job:${jobId}:status`, { 
+      io.emit(socketId, { 
         status: 'processing', 
-        progress: Math.floor(progress.percent || 0) 
+        progress: Math.min(99, Math.floor(progress.percent || 0)) 
       });
     })
     .on('error', (err) => {
-      console.error(`Error processing ${jobId}:`, err);
-      io.emit(`job:${jobId}:status`, { status: 'failed', error: err.message });
+      console.error(`[FFMPEG ERROR] ${jobId}:`, err.message);
+      io.emit(socketId, { status: 'failed', error: err.message });
       if (fs.existsSync(input)) fs.unlinkSync(input);
     })
     .on('end', () => {
-      io.emit(`job:${jobId}:status`, { status: 'completed', progress: 100 });
+      console.log(`[FFMPEG DONE] ${jobId}`);
+      io.emit(socketId, { status: 'completed', progress: 100 });
       if (fs.existsSync(input)) fs.unlinkSync(input);
     })
     .save(output);

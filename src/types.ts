@@ -88,8 +88,8 @@ export const TOOLS: ToolDefinition[] = [
     id: '05', 
     name: 'Audio Clean', 
     type: 'AudioCleaning', 
-    icon: Wand2, 
-    description: 'Remova ruídos e ecos via rede neural.',
+    icon: Mic, 
+    description: 'Remova ruídos e ecos via rede neural Xeon-Optimized.',
     settings: [
       { id: 'noise_level', label: 'Redução de Ruído', type: 'slider', min: 0, max: 100, default: 80 },
       { id: 'normalize', label: 'Normalizar Audio', type: 'toggle', default: true }
@@ -99,8 +99,8 @@ export const TOOLS: ToolDefinition[] = [
     id: '06', 
     name: 'Enhancer 4K', 
     type: 'Enhancer', 
-    icon: Mic, 
-    description: 'Upscale inteligente Xeon-optimized.',
+    icon: Wand2, 
+    description: 'Upscale inteligente via AVX-512 Xeon Pipeline.',
     settings: [
       { id: 'scale', label: 'Upscale', type: 'select', options: ['2x (1080p)', '4x (4K)'], default: '4x (4K)' },
       { id: 'sharpen', label: 'Nitidez', type: 'slider', min: 0, max: 100, default: 50 }

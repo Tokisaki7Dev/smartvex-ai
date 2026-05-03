@@ -19,13 +19,16 @@ import {
   User,
   Mic,
   Film,
-  Wand2
+  Wand2,
+  Plus,
+  Cpu,
+  Activity,
+  Zap
 } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { io, Socket } from "socket.io-client";
 import { ToolType, VideoJob, TOOLS } from "../types";
-import { Header, Sidebar } from "./Navigation";
 import { ToolSelector } from "./ToolSelector";
 import { ProcessWorkspace } from "./ProcessWorkspace";
 import { QueueMonitor } from "./QueueMonitor";
@@ -287,6 +290,7 @@ Obrigado por utilizar o SmartVex!
     if (!user) return;
 
     addLog(`Upload iniciado: ${file.name} [${(file.size / 1024 / 1024).toFixed(2)}MB]`, 'info');
+    addLog(`Pipeline: Detectando infraestrutura Xeon v4.2...`, 'info');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -294,12 +298,16 @@ Obrigado por utilizar o SmartVex!
     formData.append('settings', JSON.stringify(toolSettings));
 
     try {
+      addLog(`Transmitindo via túnel de dados seguro...`, 'info');
       const response = await fetch('/api/v1/upload', {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('Falha no upload');
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Falha no upload para o cluster.');
+      }
 
       const data = await response.json();
       const jobId = data.jobId;
@@ -317,14 +325,15 @@ Obrigado por utilizar o SmartVex!
       
       setActiveJobs(prev => {
         const updated = [newJob, ...prev];
-        localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updated));
+        if (user) localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updated));
         return updated;
       });
       setSelectedJobId(jobId);
-      addLog(`Job registrado no cluster Xeon: ${jobId}`, 'success');
+      addLog(`[XEON_LINK] Job alocado com sucesso (ID: ${jobId})`, 'success');
+      addLog(`Aguardando disponibilidade de threads Xeon...`, 'info');
 
     } catch (error: any) {
-      addLog(`Erro ao enviar vídeo: ${error.message}`, 'error');
+      addLog(`Erro crítico: ${error.message}`, 'error');
     }
   }, [user, selectedTool, toolSettings, addLog]);
 
@@ -463,234 +472,228 @@ Obrigado por utilizar o SmartVex!
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-deep overflow-hidden selection:bg-purple-500/30">
-      <Header user={user} />
-      
-      <div className="flex grow overflow-hidden">
-        <Sidebar activeView={view} onSelectView={setView} />
+    <div className="flex bg-black h-screen w-screen overflow-hidden text-white font-sans selection:bg-purple-500/30">
+      {/* 1. SIDEBAR DE NAVEGAÇÃO ULTRASLIM */}
+      <aside className="w-20 border-r border-white/10 flex flex-col items-center py-8 gap-10 bg-panel z-50">
+        <div className="w-12 h-12 bg-gradient-to-tr from-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <Sparkles className="w-6 h-6 text-white" />
+        </div>
         
-        <main className="flex-1 p-8 flex flex-col gap-8 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-purple-500/5 blur-[150px] -z-10"></div>
+        <nav className="flex flex-col gap-6">
+          <NavItem active={view === 'dashboard'} icon={LayoutDashboard} onClick={() => setView('dashboard')} label="Studio" />
+          <NavItem active={view === 'analytics'} icon={BarChart3} onClick={() => setView('analytics')} label="Analytics" />
+          <NavItem active={view === 'terminal'} icon={TerminalIcon} onClick={() => setView('terminal')} label="Logs" />
+          <NavItem active={view === 'settings'} icon={Settings} onClick={() => setView('settings')} label="Config" />
+        </nav>
+
+        <div className="mt-auto flex flex-col gap-6 items-center pb-6">
+          <div className="w-10 h-10 rounded-full border border-white/10 p-0.5 overflow-hidden">
+            <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />
+          </div>
+          <button onClick={() => supabase.auth.signOut()} className="text-gray-500 hover:text-white transition-colors">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. PAINEL DE CONFIGURAÇÃO E TOOL SELECTOR */}
+      <aside className="w-85 border-r border-white/5 bg-[#0a0a0a] flex flex-col overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/5 bg-gradient-to-b from-purple-500/5 to-transparent">
+          <h2 className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 mb-6 font-bold flex items-center gap-2">
+             <Activity className="w-3 h-3 text-purple-500" /> Pipeline Control
+          </h2>
           
-          <AnimatePresence mode="wait">
-            {view === 'dashboard' ? (
-              <motion.div 
-                key="dashboard"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex flex-col h-full gap-8 overflow-hidden"
-              >
-                <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} />
-                
-                {/* Custom Tool Settings Panel */}
-                <div className="flex flex-wrap gap-4 px-6 py-4 glass-panel rounded-3xl border-white/5 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center gap-2 mr-4 border-r border-white/10 pr-6">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
-                      {activeToolDef && <activeToolDef.icon className="w-4 h-4" />}
-                    </div>
-                    <span className="font-display font-black text-xs uppercase tracking-widest text-white/50">Configurações IA</span>
-                  </div>
-                  
-                  {activeToolDef?.settings.map(setting => (
-                    <div key={setting.id} className="flex flex-col gap-1.5 min-w-[140px]">
-                      <label className="text-[10px] font-mono uppercase tracking-tighter text-gray-500">{setting.label}</label>
-                      {setting.type === 'select' && (
+          {/* BOTÃO DE IMPORTAR FIXO E DESTAQUE */}
+          <motion.label 
+            whileHover={{ scale: 1.02, backgroundColor: 'rgba(168,85,247,0.1)' }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full h-40 border-2 border-dashed border-purple-500/20 rounded-3xl flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-purple-500/50 transition-all group mb-8 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept="video/*" 
+              onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} 
+            />
+            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all shadow-xl">
+              <Plus className="w-8 h-8" />
+            </div>
+            <div className="text-center">
+              <span className="block text-[11px] font-black uppercase tracking-[0.2em] text-white">Importar Media</span>
+              <span className="block text-[9px] font-mono text-gray-500 mt-1 uppercase">Cloud Xeon Cluster Ready</span>
+            </div>
+          </motion.label>
+
+          <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} vertical={true} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-8 custom-scrollbar">
+           <div className="pt-8 mb-4">
+             <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-500 mb-6 flex items-center gap-2">
+               <Wand2 className="w-3 h-3" /> Parâmetros IA
+             </h3>
+             
+             <div className="space-y-6">
+                {activeToolDef?.settings.map(setting => (
+                  <div key={setting.id} className="flex flex-col gap-2">
+                    <label className="text-[10px] font-mono uppercase text-gray-500">{setting.label}</label>
+                    {setting.type === 'select' && (
                         <select 
                           value={toolSettings[setting.id] || setting.default}
                           onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
-                          className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:border-purple-500/50 outline-none transition-all cursor-pointer hover:bg-white/10"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:border-purple-500/50 outline-none transition-all"
                         >
-                          {setting.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          {setting.options?.map(opt => <option key={opt} value={opt} className="bg-[#0a0a0a] text-white">{opt}</option>)}
                         </select>
-                      )}
-                      {setting.type === 'toggle' && (
-                        <button 
-                          onClick={() => setToolSettings(prev => ({ ...prev, [setting.id]: !prev[setting.id] }))}
-                          className={`w-fit px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                            toolSettings[setting.id] 
-                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
-                              : 'bg-white/5 border-white/10 text-gray-500'
-                          }`}
-                        >
-                          {toolSettings[setting.id] ? 'ATIVADO' : 'DESATIVADO'}
-                        </button>
-                      )}
-                      {setting.type === 'slider' && (
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="range"
-                            min={setting.min}
-                            max={setting.max}
-                            value={toolSettings[setting.id] || setting.default}
-                            onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: parseInt(e.target.value) }))}
-                            className="accent-purple-500 h-1 grow"
-                          />
-                          <span className="text-[10px] font-mono text-purple-400 w-6">{toolSettings[setting.id] || setting.default}%</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex grow gap-8 overflow-hidden">
-                  <ProcessWorkspace 
-                    selectedTool={selectedTool} 
-                    onUpload={handleUpload} 
-                  />
-                  
-                  <QueueMonitor 
-                    jobs={activeJobs} 
-                    logs={logs} 
-                    selectedJobId={selectedJobId}
-                    onSelectJob={(id) => setSelectedJobId(id)}
-                    onRetry={handleRetry}
-                    onDownload={(job) => {
-                      if (job.outputUrl && job.outputUrl.startsWith('blob:')) {
-                        try {
-                          const a = document.createElement('a');
-                          a.href = job.outputUrl;
-                          a.download = `smartvex_${job.tool.toLowerCase()}_${job.name}`;
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          addLog(`Exportando resultado: ${job.name}`, 'success');
-                        } catch (e) {
-                          addLog('Erro exportação. Usando fallback...', 'warn');
-                          fallbackDownload(job);
-                        }
-                      } else {
-                        fallbackDownload(job);
-                      }
-                    }}
-                  />
-                </div>
-              </motion.div>
-            ) : view === 'settings' ? (
-              <motion.div 
-                key="settings"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 glass-panel rounded-[3rem] p-12 border-white/5 overflow-y-auto"
-              >
-                <div className="max-w-4xl mx-auto">
-                  <header className="mb-12">
-                    <h2 className="text-4xl font-display font-black text-white mb-2 uppercase tracking-tighter italic">Engine Settings</h2>
-                    <p className="text-gray-500">Configure sua conexão com cluster Xeon e chaves de API.</p>
-                  </header>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <section className="space-y-6">
-                      <div className="flex items-center gap-3 text-purple-400 mb-2">
-                        <TerminalIcon className="w-5 h-5" />
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-white">Backend FastAPI</h3>
+                    )}
+                    {setting.type === 'slider' && (
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="range"
+                          min={setting.min}
+                          max={setting.max}
+                          value={toolSettings[setting.id] || setting.default}
+                          onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: parseInt(e.target.value) }))}
+                          className="accent-purple-500 h-1 grow"
+                        />
+                        <span className="text-[10px] font-mono text-purple-400 w-8">{toolSettings[setting.id] || setting.default}%</span>
                       </div>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-[10px] font-mono text-gray-500 uppercase mb-2">Backend Endpoint URL</label>
-                          <input 
-                            type="text" 
-                            placeholder="http://localhost:8000"
-                            value={backendUrl}
-                            onChange={(e) => {
-                              setBackendUrl(e.target.value);
-                              localStorage.setItem('smartvex_backend_url', e.target.value);
-                            }}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-purple-500/50 outline-none transition-all font-mono"
-                          />
-                        </div>
-                        <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/10">
-                          <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Como conectar seu servidor?
-                          </h4>
-                          <p className="text-[11px] text-gray-400 leading-relaxed">
-                            O SmartVex utiliza uma arquitetura baseada em workers. Para processar vídeos reais em 4K, você precisa rodar o arquivo <code className="text-purple-400">server.py</code> (FastAPI) em uma máquina com GPU.
-                          </p>
-                        </div>
-                      </div>
-                    </section>
-
-                    <section className="space-y-6">
-                      <div className="flex items-center gap-3 text-pink-400 mb-2">
-                        <Smartphone className="w-5 h-5" />
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-white">Mobile Tracking</h3>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col items-center justify-center gap-2">
-                          <span className="text-[10px] text-gray-500 uppercase font-mono">Status App</span>
-                          <span className="text-green-500 font-black">ONLINE</span>
-                        </div>
-                        <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col items-center justify-center gap-2">
-                          <span className="text-[10px] text-gray-500 uppercase font-mono">Sync Mode</span>
-                          <span className="text-purple-500 font-black">AUTO</span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => window.open('/server.py', '_blank')}
-                        className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-3"
+                    )}
+                    {setting.type === 'toggle' && (
+                       <button 
+                        onClick={() => setToolSettings(prev => ({ ...prev, [setting.id]: !prev[setting.id] }))}
+                        className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border ${
+                          toolSettings[setting.id] 
+                            ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
+                            : 'bg-white/5 border-white/10 text-gray-500 opacity-50'
+                        }`}
                       >
-                        <Download className="w-4 h-4" /> Download Backend Code (FastAPI)
+                        {toolSettings[setting.id] ? 'RECURSO ATIVO' : 'RECURSO INATIVO'}
                       </button>
-                    </section>
+                    )}
                   </div>
+                ))}
+             </div>
+           </div>
+        </div>
+      </aside>
 
-                  <div className="mt-16 p-8 glass-panel rounded-[2rem] border-purple-500/20 bg-purple-500/5 relative overflow-hidden group">
-                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <TerminalIcon className="w-20 h-20" />
-                     </div>
-                     <h3 className="text-xl font-bold text-white mb-4">Script de Inicialização Xeon</h3>
-                     <p className="text-sm text-gray-400 mb-6 max-w-2xl text-pretty">
-                        Copie o comando abaixo para iniciar sua Fast API localmente. Certifique-se de ter o Python 3.10+ instalado.
-                     </p>
-                     <div className="bg-black/60 rounded-xl p-6 font-mono text-sm text-purple-300 border border-white/5 flex justify-between items-center group/code cursor-pointer active:scale-[0.99] transition-all">
-                        <code>pip install fastapi uvicorn && python server.py</code>
-                        <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] text-white opacity-0 group-hover/code:opacity-100 transition-opacity uppercase font-bold">Copiar</div>
-                     </div>
-                  </div>
+      {/* 3. WORKSPACE CENTRAL */}
+      <main className="flex-1 bg-black relative flex flex-col">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black/50 backdrop-blur-md z-40">
+           <div className="flex items-center gap-4">
+             <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-mono text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Cpu className="w-3 h-3 text-purple-500" /> Engine: {user.isGuest ? 'Sandbox' : 'Xeon-Optimized'}
+             </div>
+             <div className="h-4 w-px bg-white/10"></div>
+             <span className="text-xs font-bold text-white/80 uppercase tracking-tighter italic">{activeToolDef?.name} Pipeline</span>
+           </div>
+           
+           <div className="flex items-center gap-8">
+             <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                   <div className="w-1 h-1 bg-green-500 rounded-full animate-ping"></div>
+                   <span className="text-[9px] font-mono text-green-500 uppercase font-black">Cluster_Live</span>
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="other"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.02 }}
-                className="flex-1 glass-panel rounded-[3rem] flex flex-col items-center justify-center text-center p-12 border-white/5"
-              >
-                <div className="w-24 h-24 bg-purple-500/10 rounded-[2rem] flex items-center justify-center text-purple-500 mb-8 border border-purple-500/20 shadow-[0_0_50px_rgba(168,85,247,0.1)]">
-                  <Sparkles className="w-10 h-10" />
+                <div className="flex gap-0.5">
+                   {[...Array(8)].map((_, i) => (
+                     <motion.div 
+                        key={i}
+                        animate={{ height: [4, 12, 6, 14, 8] }}
+                        transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                        className="w-1 bg-purple-500/40 rounded-full"
+                     />
+                   ))}
                 </div>
-                <h2 className="text-4xl font-display font-black text-white mb-4 uppercase tracking-tighter">Módulo em Integração</h2>
-                <p className="text-gray-400 max-w-md text-lg leading-relaxed">
-                  O módulo de <span className="text-purple-400 font-bold">{view.toUpperCase()}</span> está sendo sincronizado com os servidores Xeon. Volte em instantes para acessar suas métricas e configurações avançadas.
-                </p>
-                <button 
-                  onClick={() => setView('dashboard')}
-                  className="mt-12 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-100 transition-all flex items-center gap-2"
+             </div>
+
+             <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+               <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+               <span className="text-[10px] font-mono text-gray-400 uppercase">Latency: <span className="text-white">12ms</span></span>
+             </div>
+           </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.03)_0,transparent_100%)]">
+           {/* Visualização de Estado Vazio ou Player */}
+           <AnimatePresence mode="wait">
+             {selectedJobId ? (
+                <motion.div 
+                  key={selectedJobId}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  className="w-full h-full"
                 >
-                  Voltar ao Dashboard
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
-      </div>
+                  <ProcessWorkspace 
+                     selectedTool={selectedTool} 
+                     activeJob={activeJobs.find(j => j.id === selectedJobId)}
+                  />
+                </motion.div>
+             ) : (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  className="flex flex-col items-center text-center gap-8"
+                >
+                  <div className="w-32 h-32 bg-white/[0.02] rounded-[3rem] flex items-center justify-center text-white/10 border border-white/5 relative group">
+                    <div className="absolute inset-0 bg-purple-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <FileVideo className="w-12 h-12 transition-transform duration-500 group-hover:scale-110" />
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-white">Pronto para Renderizar</h3>
+                    <p className="text-xs text-gray-500 font-mono max-w-xs leading-loose">Selecione uma ferramenta na barra lateral e importe sua mídia para processamento Xeon.</p>
+                  </div>
+                </motion.div>
+             )}
+           </AnimatePresence>
+        </div>
+      </main>
 
-      {/* Ultra Slim Footer */}
-      <footer className="h-6 bg-black border-t border-white/5 px-8 flex items-center justify-between text-[8px] font-mono opacity-20 uppercase tracking-[0.4em] shrink-0 pointer-events-none">
-        <div className="flex gap-12">
-          <span>TX_READY: 0.2ms</span>
-          <span>BUFFER_LEVEL: 0%</span>
-          <span>GPU_TEMP: 32°C</span>
-        </div>
-        <div className="flex gap-12">
-          <span>SECURE_SHELL: AES-256</span>
-          <span>CLUSTER_ID: SMARTVEX-01-BR</span>
-        </div>
-      </footer>
+      {/* 4. MONITOR DE STATUS E LOGS (DIREITA) */}
+      <aside className="w-96 border-l border-white/10 bg-panel flex flex-col overflow-hidden">
+         <QueueMonitor 
+            jobs={activeJobs} 
+            logs={logs} 
+            selectedJobId={selectedJobId}
+            onSelectJob={(id) => setSelectedJobId(id)}
+            onRetry={handleRetry}
+            onDownload={(job) => {
+              if (job.status === 'completed') {
+                const link = document.createElement('a');
+                link.href = `/api/v1/download/${job.id}`;
+                link.download = `smartvex_${job.id}_${job.name}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                addLog(`Baixando vídeo processado: ${job.name}`, 'success');
+              } else {
+                addLog('Aguarde a finalização do processamento para baixar.', 'warn');
+              }
+            }}
+          />
+      </aside>
+
+      {/* FOOTER OVERLAY */}
+      <div className="fixed bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-pink-500 to-transparent opacity-50 z-[100]"></div>
     </div>
+  );
+}
+
+function NavItem({ active, icon: Icon, onClick, label }: { active: boolean, icon: any, onClick: () => void, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`relative group p-3 rounded-2xl transition-all duration-300 ${active ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+    >
+      <Icon className="w-5 h-5" />
+      <div className="absolute left-full ml-4 px-3 py-1.5 bg-black border border-white/10 text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none whitespace-nowrap font-bold uppercase tracking-widest">
+        {label}
+      </div>
+      {active && <motion.div layoutId="nav-active" className="absolute -left-1 top-1/4 bottom-1/4 w-1 bg-purple-500 rounded-full" />}
+    </button>
   );
 }

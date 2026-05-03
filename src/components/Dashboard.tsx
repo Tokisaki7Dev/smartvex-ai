@@ -58,41 +58,51 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const backendUrl = window.location.origin;
-    socketRef.current = io(backendUrl);
+    socketRef.current = io(window.location.origin, {
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    });
     
-    const checkEngine = async (isRetry = false) => {
+    const checkEngine = async () => {
+      // Priorizamos o estado do socket para evitar falsos "Offline"
+      if (socketRef.current?.connected) {
+        setEngineStatus('online');
+        return;
+      }
+
       try {
-        const r = await fetch('/api/health', { cache: 'no-store' });
+        const r = await fetch('/api/health', { 
+          cache: 'no-store',
+          signal: AbortController ? new AbortController().signal : undefined 
+        });
         if (r.ok) {
-          setEngineStatus('online');
-        } else {
-          // Se falhar mas o socket estiver ok, talvez seja apenas delay
-          if (socketRef.current?.connected) {
-             setEngineStatus('online');
-          } else {
-             setEngineStatus('offline');
-          }
-        }
-      } catch (err) {
-        // Se o socket estiver conectado, ignoramos falha do fetch de health temporariamente
-        if (socketRef.current?.connected) {
           setEngineStatus('online');
         } else {
           setEngineStatus('offline');
         }
+      } catch (err) {
+        setEngineStatus('offline');
       }
     };
     
     checkEngine();
-    const clusterCheckInterval = setInterval(() => checkEngine(true), 15000);
+    const clusterCheckInterval = setInterval(checkEngine, 45000);
+
+    socketRef.current.on('connect', () => {
+      setEngineStatus('online');
+      addLog('Node Xeon conectado via Socket.', 'success');
+    });
 
     socketRef.current.on('jobUpdate', (update: Partial<VideoJob>) => {
       setActiveJobs(prev => prev.map(job => 
         job.id === update.id ? { ...job, ...update } : job
       ));
-      if (update.status === 'completed') addLog(`Job ${update.id} finalizado com sucesso!`, 'success');
-      if (update.status === 'failed') addLog(`Pipeline falhou no job ${update.id}`, 'error');
+      if (update.status === 'completed') addLog(`Job ${update.id} finalizado!`, 'success');
+      if (update.status === 'failed') addLog(`Pipeline falhou job ${update.id}`, 'error');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      setEngineStatus('offline');
     });
 
     return () => {
@@ -146,10 +156,10 @@ export default function Dashboard() {
   const activeJob = activeJobs.find(j => j.id === selectedJobId);
 
   return (
-    <div className="flex h-screen w-full bg-[#050505] text-white selection:bg-purple-500/30 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-black text-white selection:bg-purple-500/30 overflow-hidden font-sans">
       {/* SIDEBAR DE CONTROLE */}
-      <aside className="w-72 border-r border-white/5 bg-black flex flex-col py-8">
-        <div className="flex-1 flex flex-col gap-8 px-4 overflow-y-auto custom-scrollbar">
+      <aside className="w-72 border-r border-white/5 bg-black flex flex-col py-8 overflow-y-auto custom-scrollbar shadow-xl">
+        <div className="flex-1 flex flex-col gap-8 px-6">
            {/* LOGO AREA */}
            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl mx-auto shrink-0 mb-4 mt-2">
               <Activity className="w-6 h-6 text-white" />
@@ -158,7 +168,7 @@ export default function Dashboard() {
            <div className="h-px bg-white/5 w-full"></div>
 
            {/* TOOL SETTINGS PANEL */}
-           <div className="flex-1 flex flex-col gap-8">
+           <div className="flex-1 flex flex-col gap-8 pb-10">
               <div className="space-y-4">
                  <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-500 flex items-center gap-2">
                     <Zap className="w-3 h-3" /> Configs IA
@@ -209,9 +219,10 @@ export default function Dashboard() {
            </div>
         </div>
 
-        <div className="p-4 border-t border-white/5">
-           <button onClick={logout} className="w-12 h-12 rounded-2xl flex items-center justify-center text-gray-600 hover:text-rose-500 hover:bg-rose-500/10 transition-all mx-auto">
-              <LogOut className="w-5 h-5" />
+        <div className="p-4 border-t border-white/5 bg-black sticky bottom-0">
+           <button onClick={logout} className="w-full py-3 rounded-xl flex items-center justify-center gap-3 text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20">
+              <LogOut className="w-4 h-4" />
+              <span className="text-[10px] uppercase font-bold tracking-widest">Sair do Node</span>
            </button>
         </div>
       </aside>
@@ -219,7 +230,7 @@ export default function Dashboard() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative bg-[#050505]">
         {/* TOP NAVBAR */}
-        <header className="h-20 px-8 flex items-center justify-between border-b border-white/5 bg-black/40 backdrop-blur-xl z-20">
+        <header className="h-20 px-8 flex items-center justify-between border-b border-white/5 bg-black z-20">
            <div className="flex items-center gap-6">
               <h1 className="text-xl font-display font-black uppercase tracking-tighter italic">SmartVex <span className="text-purple-500 font-mono text-[10px] not-italic tracking-widest ml-2 opacity-50">Enterprise</span></h1>
               <div className="h-4 w-px bg-white/10"></div>
@@ -246,7 +257,7 @@ export default function Dashboard() {
         </header>
 
         {/* DASHBOARD CONTENT */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden bg-black">
            {/* DISCOVER & TOOLS */}
            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
               <AnimatePresence mode="wait">

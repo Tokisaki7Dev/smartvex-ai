@@ -30,10 +30,23 @@ async function startServer() {
   const UPLOAD_DIR = '/tmp/uploads';
   const OUTPUT_DIR = '/tmp/outputs';
 
-  // Request Logging
+  // Request Logging - TOP LEVEL
   app.use((req, res, next) => {
-    console.log(`[ENGINE_REQ] ${req.method} ${req.url}`);
+    if (req.url !== '/api/health') {
+      console.log(`[XEON_NODE] ${req.method} ${req.url}`);
+    }
     next();
+  });
+
+  // API Routes - Health check ABSOLUTE FIRST
+  app.get('/api/health', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.status(200).json({ 
+      status: 'ok', 
+      cluster: 'Xeon-Optimized', 
+      engine: '4.2.0-stable'
+    });
   });
 
   app.use(express.json({ limit: '1024mb' }));
@@ -47,18 +60,6 @@ async function startServer() {
     filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
   });
   const upload = multer({ storage, limits: { fileSize: 1100 * 1024 * 1024 } }); // 1.1GB limit
-
-  // API Routes - Health check FIRST
-  app.get('/api/health', (req, res) => {
-    res.set('Cache-Control', 'no-store');
-    res.json({ 
-      status: 'ok', 
-      engine: 'Xeon v4.2 Gold', 
-      node: 'Cluster-01',
-      uptime: process.uptime(),
-      limits: { upload: '1GB' }
-    });
-  });
 
   app.post('/api/v1/upload', upload.single('file'), (req, res) => {
     try {

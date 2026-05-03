@@ -63,15 +63,24 @@ export default function Dashboard() {
     
     const checkEngine = async (isRetry = false) => {
       try {
-        const r = await fetch('/api/health');
+        const r = await fetch('/api/health', { cache: 'no-store' });
         if (r.ok) {
           setEngineStatus('online');
-          if (isRetry) addLog('Conexão restabelecida com o cluster Xeon.', 'success');
+        } else {
+          // Se falhar mas o socket estiver ok, talvez seja apenas delay
+          if (socketRef.current?.connected) {
+             setEngineStatus('online');
+          } else {
+             setEngineStatus('offline');
+          }
+        }
+      } catch (err) {
+        // Se o socket estiver conectado, ignoramos falha do fetch de health temporariamente
+        if (socketRef.current?.connected) {
+          setEngineStatus('online');
         } else {
           setEngineStatus('offline');
         }
-      } catch (err) {
-        setEngineStatus('offline');
       }
     };
     
@@ -341,26 +350,28 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* CLUSTER OVERLAY IF OFFLINE */}
-      {engineStatus === 'offline' && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6">
-           <div className="max-w-md w-full bg-white/[0.02] border border-rose-500/20 p-10 rounded-[3rem] text-center">
-              <div className="w-20 h-20 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-500/40">
-                 <Activity className="w-10 h-10 text-rose-500" />
-              </div>
-              <h2 className="text-2xl font-display font-black text-white uppercase italic italic mb-4">Cluster Offline</h2>
-              <p className="text-sm text-gray-500 font-mono leading-relaxed mb-8">
-                 O nó <span className="text-rose-400 font-bold tracking-widest">XEON-v4-01</span> não respondeu ao ping de sincronia. Verifique a conexão do servidor.
-              </p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 transition-all shadow-2xl shadow-rose-500/20"
-              >
-                Tentar Reconexão
-              </button>
-           </div>
-        </div>
-      )}
+      {/* CLUSTER STATUS OVERLAY (NOT BLOCKING) */}
+      <AnimatePresence>
+        {engineStatus === 'offline' && (
+          <motion.div 
+            initial={{ y: -100 }}
+            animate={{ y: 0 }}
+            exit={{ y: -100 }}
+            className="fixed top-0 left-0 right-0 z-[100] bg-rose-600 px-4 py-2 flex items-center justify-center gap-4 shadow-2xl"
+          >
+             <Activity className="w-4 h-4 text-white animate-pulse" />
+             <span className="text-[10px] font-mono font-black uppercase tracking-widest text-white">
+                Cluster Xeon Offline - Tentando Reconectar...
+             </span>
+             <button 
+               onClick={() => window.location.reload()}
+               className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-[9px] font-bold uppercase transition-all"
+             >
+               Recarregar
+             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

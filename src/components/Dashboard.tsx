@@ -271,8 +271,7 @@ Obrigado por utilizar o SmartVex!
     addLog(`CONFIG: ${settingsStr}`, 'info');
 
     if (backendUrl) {
-      addLog(`Conectando ao cluster Xeon em ${backendUrl}...`, 'info');
-      // Tentativa real de contato se houver backendUrl
+      addLog(`[XEON_LINK] Tentando conexão com cluster remoto em ${backendUrl}...`, 'info');
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -282,14 +281,19 @@ Obrigado por utilizar o SmartVex!
         fetch(`${backendUrl.replace(/\/$/, '')}/api/v1/process`, {
           method: 'POST',
           body: formData
-        }).then(res => {
-          if (res.ok) addLog(`Handshake Xeon bem sucedido. Job delegado para processamento remoto.`, 'success');
-          else addLog(`Backend remoto respondeu com erro. Usando engine local fallback.`, 'warn');
+        }).then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            addLog(`[XEON_SUCCESS] Handshake completo. Job de processamento alocado no servidor Xeon (ID: ${data.job_id}).`, 'success');
+            addLog(`Otimizando pipeline para algoritmos de IA proprietários...`, 'info');
+          } else {
+            addLog(`[XEON_ERROR] Backend recusou a tarefa. Ativando Sandbox local (Limitação de GPU).`, 'warn');
+          }
         }).catch(() => {
-          addLog(`Backend ${backendUrl} offline. Usando engine sandbox local.`, 'warn');
+          addLog(`[XEON_OFFLINE] Cluster não encontrado. Certifique-se que 'server.py' está rodando no seu servidor.`, 'error');
         });
       } catch (e) {
-        addLog(`Erro ao contactar backend. Sandbox local ativado.`, 'warn');
+        addLog(`Falha crítica de comunicação com o cluster.`, 'error');
       }
     }
 

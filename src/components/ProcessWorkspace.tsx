@@ -21,13 +21,8 @@ export function ProcessWorkspace({
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('video/')) setStagedFile(file);
-  };
-
-  const handleLaunch = () => {
-    if (stagedFile) {
-      onUpload(stagedFile);
-      setStagedFile(null); // Reset after upload
+    if (file && file.type.startsWith('video/')) {
+      onUpload(file);
     }
   };
 
@@ -121,11 +116,11 @@ export function ProcessWorkspace({
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => fileInputRef.current?.click()}
-              className="relative px-12 py-5 bg-white text-black font-black uppercase tracking-tighter rounded-2xl hover:bg-gray-100 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] text-xl overflow-hidden group/btn"
+              className="relative px-12 py-5 bg-white text-black font-black uppercase tracking-tighter rounded-2xl hover:bg-gray-100 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] text-2xl overflow-hidden group/btn"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-              <span className="relative z-10 flex items-center gap-3">
-                <FileVideo className="w-6 h-6" /> Importar Vídeo
+              <span className="relative z-10 flex items-center gap-4">
+                <FileVideo className="w-8 h-8" /> Iniciar Agora
               </span>
             </motion.button>
           </>
@@ -137,41 +132,26 @@ export function ProcessWorkspace({
           className="hidden" 
           accept="video/*" 
           onChange={(e) => {
-            if (e.target.files?.[0]) setStagedFile(e.target.files[0]);
-            e.target.value = ''; // Reset input to allow triggering same file again
+            if (e.target.files?.[0]) onUpload(e.target.files[0]);
+            e.target.value = ''; 
           }}
         />
       </div>
 
-      {/* AI Pipeline Controls */}
       <div className="bg-[#111] border border-white/5 rounded-[2rem] p-6 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
             <Wand2 className="w-6 h-6" />
           </div>
           <div>
-            <h4 className="text-white font-bold text-base">Opções da IA configuradas</h4>
+            <h4 className="text-white font-bold text-base">Pipeline Xeon-Optimized</h4>
             <p className="text-sm text-gray-500">Pronto para gerar virais e revolucionar o alcance.</p>
           </div>
         </div>
 
-        <motion.button 
-          whileHover={{ scale: stagedFile ? 1.02 : 1 }}
-          whileTap={{ scale: stagedFile ? 0.98 : 1 }}
-          onClick={handleLaunch}
-          disabled={!stagedFile}
-          className={`px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center gap-3 shadow-xl transition-all ${
-            stagedFile 
-              ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-purple-500/20 hover:brightness-110' 
-              : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/5'
-          }`}
-        >
-          {stagedFile ? (
-            <>Gerar Clipes (1 clique) <Play className="w-5 h-5 fill-current" /></>
-          ) : (
-            'Aguardando Vídeo'
-          )}
-        </motion.button>
+        <div className="flex items-center gap-2 px-6 py-3 bg-purple-500/5 rounded-full border border-purple-500/10 text-purple-400 font-mono text-[10px] uppercase tracking-widest">
+          Status: Aguardando Media
+        </div>
       </div>
     </div>
   );

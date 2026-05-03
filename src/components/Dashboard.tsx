@@ -195,22 +195,22 @@ export default function Dashboard() {
         success: 'Recortes virais gerados com sucesso!',
         step: 'Detectando rostos e reenquadrando para 9:16...'
       },
-      'Subtitle': {
+      'Captioning': {
         start: 'Escutando áudio e gerando transcrição...',
         success: 'Legendas dinâmicas aplicadas!',
         step: 'Sincronizando emojis e animações de texto...'
       },
-      'Compress': {
+      'Compression': {
         start: 'Otimizando bitrate sem perder qualidade...',
         success: 'Arquivo comprimido com sucesso!',
         step: 'Re-encodando frames pesados...'
       },
-      'Convert': {
+      'Conversion': {
         start: 'Alterando container e formato...',
         success: 'Vídeo convertido com sucesso!',
         step: 'Preservando metadados de cor...'
       },
-      'Audio': {
+      'AudioCleaning': {
         start: 'IA removendo ruído de fundo...',
         success: 'Áudio cristalino processado!',
         step: 'Equalizando ganho e removendo reverberação...'
@@ -241,17 +241,22 @@ export default function Dashboard() {
         outputUrl: simulatedOutputUrl
       };
       
-      const updatedJobs = [newJob, ...activeJobs];
-      setActiveJobs(updatedJobs);
-      localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updatedJobs));
+      setActiveJobs(prev => {
+        const updated = [newJob, ...prev];
+        localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updated));
+        return updated;
+      });
       setSelectedJobId(fakeId);
 
       // Guest Simulation - Fast Processing
       setTimeout(() => {
         addLog(msgs.start, 'success');
-        let progress = 0;
+        // Instantly move to processing status
+        setActiveJobs(prev => prev.map(j => j.id === fakeId ? { ...j, status: 'processing' as const, progress: 5 } : j));
+        
+        let progress = 5;
         const interval = setInterval(() => {
-          progress += Math.random() * 25; 
+          progress += Math.random() * 15 + 2; 
           if (progress >= 100) {
             progress = 100;
             setActiveJobs(prev => {
@@ -262,11 +267,11 @@ export default function Dashboard() {
             addLog(msgs.success, 'success');
             clearInterval(interval);
           } else {
-            if (progress > 50 && progress < 60) addLog(msgs.step, 'info');
+            if (progress > 40 && progress < 55) addLog(msgs.step, 'info');
             setActiveJobs(prev => prev.map(j => j.id === fakeId ? { ...j, progress: Math.floor(progress), status: 'processing' as const } : j));
           }
-        }, 800); 
-      }, 500);
+        }, 1000); 
+      }, 800);
       return;
     }
 
@@ -278,7 +283,7 @@ export default function Dashboard() {
           user_id: user.uid,
           name: file.name,
           tool: selectedTool,
-          progress: 0,
+          progress: 1, // Feedback imediato
           status: 'queued',
           output_url: simulatedOutputUrl
         })
@@ -287,24 +292,28 @@ export default function Dashboard() {
         
       if (error) throw error;
       
-      addLog(`Job registrado na nuvem (ID: ${data.id.substring(0,8)})`, 'info');
+      addLog(`Servidores Xeon alocados (ID: ${data.id.substring(0,8)})`, 'info');
       setSelectedJobId(data.id);
 
       // Mock of actual processing
-      let progress = 0;
-      setTimeout(() => addLog(msgs.start, 'success'), 500);
-      
-      const interval = setInterval(async () => {
-        progress += Math.random() * 20;
-        if (progress >= 100) {
-          await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', data.id);
-          clearInterval(interval);
-          addLog(msgs.success, 'success');
-        } else {
-          if (progress > 45 && progress < 55) addLog(msgs.step, 'info');
-          await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', data.id);
-        }
-      }, 1200);
+      let progress = 1;
+      setTimeout(async () => {
+        addLog(msgs.start, 'success');
+        // Update database to processing status
+        await supabase.from('video_jobs').update({ status: 'processing', progress: 5 }).eq('id', data.id);
+        
+        const interval = setInterval(async () => {
+          progress += Math.random() * 12 + 1; 
+          if (progress >= 100) {
+            await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', data.id);
+            clearInterval(interval);
+            addLog(msgs.success, 'success');
+          } else {
+            if (progress > 40 && progress < 55) addLog(msgs.step, 'info');
+            await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', data.id);
+          }
+        }, 1500);
+      }, 800);
 
     } catch (error: any) {
       addLog(`Erro ao registrar job no banco: ${error.message}`, "error");

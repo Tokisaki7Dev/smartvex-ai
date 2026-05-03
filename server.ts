@@ -208,22 +208,23 @@ function processVideo(jobId: string, input: string, output: string, tool: string
   command
     .on('start', (cmdLine) => {
       console.log(`[FFMPEG START] ${jobId}: ${cmdLine}`);
-      io.emit(socketId, { status: 'processing', progress: 5 });
+      io.emit('jobUpdate', { id: jobId, status: 'processing', progress: 5 });
     })
     .on('progress', (progress) => {
-      io.emit(socketId, { 
+      io.emit('jobUpdate', { 
+        id: jobId,
         status: 'processing', 
         progress: Math.min(99, Math.floor(progress.percent || 0)) 
       });
     })
     .on('error', (err) => {
       console.error(`[FFMPEG ERROR] ${jobId}:`, err.message);
-      io.emit(socketId, { status: 'failed', error: err.message });
+      io.emit('jobUpdate', { id: jobId, status: 'failed', error: err.message });
       if (fs.existsSync(input)) fs.unlinkSync(input);
     })
     .on('end', () => {
       console.log(`[FFMPEG DONE] ${jobId}`);
-      io.emit(socketId, { status: 'completed', progress: 100 });
+      io.emit('jobUpdate', { id: jobId, status: 'completed', progress: 100 });
       if (fs.existsSync(input)) fs.unlinkSync(input);
     })
     .save(output);

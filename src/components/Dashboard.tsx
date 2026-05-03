@@ -59,34 +59,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     socketRef.current = io(window.location.origin, {
-      reconnectionAttempts: 5,
-      timeout: 10000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      timeout: 20000,
     });
     
     const checkEngine = async () => {
-      // Priorizamos o estado do socket para evitar falsos "Offline"
       if (socketRef.current?.connected) {
         setEngineStatus('online');
         return;
       }
 
       try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 4000);
         const r = await fetch('/api/health', { 
           cache: 'no-store',
-          signal: AbortController ? new AbortController().signal : undefined 
+          headers: { 'Pragma': 'no-cache' },
+          signal: controller.signal
         });
-        if (r.ok) {
-          setEngineStatus('online');
-        } else {
-          setEngineStatus('offline');
-        }
+        clearTimeout(tid);
+        setEngineStatus(r.ok ? 'online' : 'offline');
       } catch (err) {
         setEngineStatus('offline');
       }
     };
     
     checkEngine();
-    const clusterCheckInterval = setInterval(checkEngine, 45000);
+    const clusterCheckInterval = setInterval(checkEngine, 10000);
 
     socketRef.current.on('connect', () => {
       setEngineStatus('online');
@@ -97,8 +97,8 @@ export default function Dashboard() {
       setActiveJobs(prev => prev.map(job => 
         job.id === update.id ? { ...job, ...update } : job
       ));
-      if (update.status === 'completed') addLog(`Job ${update.id} finalizado!`, 'success');
-      if (update.status === 'failed') addLog(`Pipeline falhou job ${update.id}`, 'error');
+      if (update.status === 'completed') addLog(`Job finalizado!`, 'success');
+      if (update.status === 'failed') addLog(`Erro na pipeline ID: ${update.id}`, 'error');
     });
 
     socketRef.current.on('disconnect', () => {
@@ -156,12 +156,12 @@ export default function Dashboard() {
   const activeJob = activeJobs.find(j => j.id === selectedJobId);
 
   return (
-    <div className="flex h-screen w-full bg-black text-white selection:bg-purple-500/30 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#050505] text-white selection:bg-purple-500/30 overflow-hidden font-sans">
       {/* SIDEBAR DE CONTROLE */}
-      <aside className="w-72 border-r border-white/5 bg-black flex flex-col py-8 overflow-y-auto custom-scrollbar shadow-xl">
+      <aside className="w-72 border-r border-white/10 bg-black flex flex-col py-8 overflow-y-auto custom-scrollbar">
         <div className="flex-1 flex flex-col gap-8 px-6">
            {/* LOGO AREA */}
-           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl mx-auto shrink-0 mb-4 mt-2">
+           <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto shrink-0 mb-4 mt-2 shadow-lg">
               <Activity className="w-6 h-6 text-white" />
            </div>
 
@@ -292,20 +292,16 @@ export default function Dashboard() {
                      </div>
 
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {TOOLS.map((tool, i) => (
-                           <motion.div 
+                        {TOOLS.map((tool) => (
+                           <div 
                             key={tool.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.05 }}
                             onClick={() => setSelectedTool(tool.type)}
                             className={`p-8 rounded-[2rem] border transition-all cursor-pointer group relative overflow-hidden h-72 flex flex-col justify-between ${
                               selectedTool === tool.type 
-                                ? 'bg-purple-600/10 border-purple-500/40 shadow-2xl' 
+                                ? 'bg-purple-600/10 border-purple-500/40' 
                                 : 'bg-white/[0.02] border-white/5 hover:border-white/20'
                             }`}
                            >
-                              <div className="absolute -right-8 -top-8 w-32 h-32 bg-purple-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                               <div>
                                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all ${
                                    selectedTool === tool.type ? 'bg-purple-500 text-white shadow-xl' : 'bg-white/5 text-gray-600'
@@ -319,7 +315,7 @@ export default function Dashboard() {
                                  <span className="text-[9px] font-mono text-purple-400 font-black tracking-[0.2em] uppercase">Enterprise</span>
                                  <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-white transition-colors" />
                               </div>
-                           </motion.div>
+                           </div>
                         ))}
                      </div>
 
@@ -361,25 +357,19 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* CLUSTER STATUS OVERLAY (NOT BLOCKING) */}
+      {/* CLUSTER STATUS NOTIFICATION (DISCREET) */}
       <AnimatePresence>
         {engineStatus === 'offline' && (
           <motion.div 
-            initial={{ y: -100 }}
-            animate={{ y: 0 }}
-            exit={{ y: -100 }}
-            className="fixed top-0 left-0 right-0 z-[100] bg-rose-600 px-4 py-2 flex items-center justify-center gap-4 shadow-2xl"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-rose-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_10px_40px_rgba(244,63,94,0.3)] border border-white/20"
           >
-             <Activity className="w-4 h-4 text-white animate-pulse" />
-             <span className="text-[10px] font-mono font-black uppercase tracking-widest text-white">
-                Cluster Xeon Offline - Tentando Reconectar...
+             <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></div>
+             <span className="text-[10px] font-mono font-black uppercase tracking-widest">
+                Cluster Offline - Sincronizando...
              </span>
-             <button 
-               onClick={() => window.location.reload()}
-               className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-[9px] font-bold uppercase transition-all"
-             >
-               Recarregar
-             </button>
           </motion.div>
         )}
       </AnimatePresence>

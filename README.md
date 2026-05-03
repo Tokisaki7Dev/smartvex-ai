@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# SmartVex - AI Video Content Engine
 
-# Run and deploy your AI Studio app
+SmartVex is a high-performance SaaS platform built for creators who want to dominate social media. Using advanced AI, SmartVex transforms long-form content into viral clips for TikTok, Reels, and Shorts.
 
-This contains everything you need to run your app locally.
+## 🚀 Experience
+- **Ultra-Fast Clipping**: AI automatically identifies the most engaging hooks in your videos.
+- **Viral Captions**: Dynamic, animated captions that keep viewers glued to the screen.
+- **Face Tracking**: Smart reframe that keeps the speaker centered in 9:16 format.
+- **Audio Intelligence**: Level up your sound with AI cleaning and synthesis.
 
-View your app in AI Studio: https://ai.studio/apps/f4add4d1-8632-42b7-a0b0-2b0677d8deb6
+## 🛠 Tech Stack
+- **Frontend**: React 19 + TypeScript + Vite
+- **Styling**: Tailwind CSS 4 + Motion (Framer Motion)
+- **Database/Auth**: Supabase (PostgreSQL + Auth)
+- **Realtime**: Supabase Live Channels
 
-## Run Locally
+## 📦 Getting Started
 
-**Prerequisites:**  Node.js
+### 1. Requirements
+- Node.js 20+
+- A Supabase Project
 
+### 2. Installation
+```bash
+npm install
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 3. Setup
+1. Copy `.env.example` to `.env` (Vite will load these).
+2. Configure your Supabase credentials.
+3. Run the SQL script in `SUPABASE_SCHEMA.sql` in your Supabase dashboard.
+
+### 4. Running Locally
+```bash
+npm run dev
+```
+
+## 🚢 Deployment
+See [README_DEPLOY.md](./README_DEPLOY.md) for step-by-step instructions on deploying to Vercel and Supabase.
+
+---
+© 2026 SmartVex Core. Built for the future of content.

@@ -8,28 +8,15 @@ import {
 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db, signInWithGoogle } from "../lib/firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc,
-  doc,
-  serverTimestamp,
-  orderBy,
-  limit
-} from "firebase/firestore";
 import { ToolType, VideoJob } from "../types";
 import { Header, Sidebar } from "./Navigation";
 import { ToolSelector } from "./ToolSelector";
 import { ProcessWorkspace } from "./ProcessWorkspace";
 import { QueueMonitor } from "./QueueMonitor";
+import { supabase } from "../lib/supabase";
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | { uid: string, displayName: string, photoURL: string, isGuest: boolean } | null>(null);
+  const [user, setUser] = useState<{ uid: string, displayName: string, photoURL: string, isGuest: boolean } | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeJobs, setActiveJobs] = useState<VideoJob[]>([]);
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
@@ -39,7 +26,7 @@ export default function Dashboard() {
   const addLog = useCallback((msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
     setLogs(prev => {
       const newLogs = [...prev.slice(-30), { msg, type }];
-      if (user && 'isGuest' in user && user.isGuest) {
+      if (user) {
         localStorage.setItem(`logs_${user.uid}`, JSON.stringify(newLogs));
       }
       return newLogs;
@@ -48,24 +35,51 @@ export default function Dashboard() {
 
   // Auth Effects
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(current => {
-        if (current && 'isGuest' in current && current.isGuest) return current;
-        if (!u) {
-          const guestId = localStorage.getItem('guest_uid');
-          if (guestId) {
-            return {
-              uid: guestId,
-              displayName: 'Criador Convidado',
-              photoURL: `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${guestId}`,
-              isGuest: true
-            };
-          }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário',
+          photoURL: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${session.user.id}`,
+          isGuest: false
+        });
+      } else {
+        const guestId = localStorage.getItem('guest_uid');
+        if (guestId) {
+          setUser({
+            uid: guestId,
+            displayName: 'Criador Convidado',
+            photoURL: `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${guestId}`,
+            isGuest: true
+          });
         }
-        return u;
-      });
+      }
     });
-    return () => unsubscribe();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário',
+          photoURL: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${session.user.id}`,
+          isGuest: false
+        });
+      } else {
+        const guestId = localStorage.getItem('guest_uid');
+        if (guestId) {
+          setUser({
+            uid: guestId,
+            displayName: 'Criador Convidado',
+            photoURL: `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${guestId}`,
+            isGuest: true
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Data Fetching / Persistence
@@ -75,7 +89,7 @@ export default function Dashboard() {
       return;
     }
     
-    if ('isGuest' in user && user.isGuest) {
+    if (user.isGuest) {
       const savedJobs = localStorage.getItem(`jobs_${user.uid}`);
       const savedLogs = localStorage.getItem(`logs_${user.uid}`);
       
@@ -87,42 +101,61 @@ export default function Dashboard() {
       }
 
       if (savedLogs) setLogs(JSON.parse(savedLogs));
-      else addLog("Sessão iniciada. Pronto para criar clipes virais.", "info");
-
+      else addLog("Sessão iniciada como Convidado. Pronto para criar clipes.", "info");
       return;
     }
 
-    const path = 'video_jobs';
-    const q = query(
-      collection(db, path), 
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
+    // Authenticated user: fetch from Supabase
+    const fetchJobs = async () => {
+      const { data, error } = await supabase
+        .from('video_jobs')
+        .select('*')
+        .eq('user_id', user.uid)
+        .order('created_at', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const jobs: VideoJob[] = [];
-      snapshot.forEach((doc) => {
-        jobs.push({ id: doc.id, ...doc.data() } as VideoJob);
-      });
-      setActiveJobs(jobs);
-    });
+      if (error) {
+        addLog(`Erro ao carregar jobs: ${error.message}`, 'error');
+        return;
+      }
+      setActiveJobs(data.map(job => ({ 
+        ...job, 
+        userId: job.user_id, 
+        outputUrl: job.output_url,
+        createdAt: job.created_at
+      })) as VideoJob[]);
+    };
 
-    return () => unsubscribe();
+    fetchJobs();
+
+    const subscription = supabase
+      .channel('public:video_jobs')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'video_jobs', filter: `user_id=eq.${user.uid}` }, payload => {
+        fetchJobs();
+      })
+      .subscribe();
+
+    const savedLogs = localStorage.getItem(`logs_${user.uid}`);
+    if (savedLogs) setLogs(JSON.parse(savedLogs));
+    else addLog("Sessão autenticada iniciada. Pronto para criar clipes virais.", "info");
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, [user, addLog]);
 
   // Actions
   const handleGoogleLogin = async () => {
     try {
       setAuthError(null);
-      await signInWithGoogle();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (error) throw error;
     } catch (err: any) {
-      if (err.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        setAuthError(`DOMÍNIO NÃO AUTORIZADO: Adicione "${domain}" no console do Firebase.`);
-      } else {
-        setAuthError(`ERRO DE AUTENTICAÇÃO: ${err.message}`);
-      }
+      setAuthError(`ERRO DE AUTENTICAÇÃO: ${err.message}`);
     }
   };
 
@@ -160,7 +193,7 @@ export default function Dashboard() {
     // Create a local object URL to simulate downloading the "processed" file
     const simulatedOutputUrl = URL.createObjectURL(file);
 
-    if ('isGuest' in user && user.isGuest) {
+    if (user.isGuest) {
       const fakeId = Math.random().toString(36).substr(2, 9);
       const newJob: VideoJob = {
         id: fakeId,
@@ -201,44 +234,49 @@ export default function Dashboard() {
       return;
     }
 
-    // Real Firebase Upload Logic
+    // Real Supabase Logic
     try {
-      const path = 'video_jobs';
-      const docRef = await addDoc(collection(db, path), {
-        userId: user.uid,
-        name: file.name,
-        tool: selectedTool,
-        progress: 0,
-        status: 'queued',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        outputUrl: simulatedOutputUrl
-      });
-
-      addLog(`Job registrado na nuvem: ${docRef.id}`, 'info');
-      setSelectedJobId(docRef.id);
+      const { data, error } = await supabase
+        .from('video_jobs')
+        .insert({
+          user_id: user.uid,
+          name: file.name,
+          tool: selectedTool,
+          progress: 0,
+          status: 'queued',
+          output_url: simulatedOutputUrl
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      addLog(`Job registrado na nuvem: ${data.id}`, 'info');
+      setSelectedJobId(data.id);
 
       // Mock of actual processing (faster for free tier constraints)
       let progress = 0;
       const interval = setInterval(async () => {
         progress += Math.random() * 40;
-        const jobRef = doc(db, 'video_jobs', docRef.id);
         if (progress >= 100) {
-          await updateDoc(jobRef, { progress: 100, status: 'completed', updatedAt: serverTimestamp() });
+          await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', data.id);
           clearInterval(interval);
+          addLog(`Clipes renderizados com sucesso: ${file.name}`, 'success');
         } else {
-          await updateDoc(jobRef, { progress: Math.floor(progress), status: 'processing', updatedAt: serverTimestamp() });
+          await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', data.id);
         }
       }, 800);
 
-    } catch (error) {
-      addLog("Erro ao registrar job no banco de dados.", "error");
+    } catch (error: any) {
+      addLog(`Erro ao registrar job no banco: ${error.message}`, "error");
     }
   }, [user, selectedTool, activeJobs, addLog]);
 
   const handleRetry = async (job: VideoJob) => {
     addLog(`Reiniciando IA para ${job.name}`, 'warn');
-    if (user && 'isGuest' in user && user.isGuest) {
+    if (!user) return;
+    
+    if (user.isGuest) {
       // Just reset the specific job
       const reset = activeJobs.map(j => j.id === job.id ? { ...j, status: 'queued' as const, progress: 0 } : j);
       setActiveJobs(reset);
@@ -264,22 +302,28 @@ export default function Dashboard() {
           }
         }, 500);
       }, 300);
+      return;
+    }
 
-    } else {
-      await updateDoc(doc(db, 'video_jobs', job.id), { status: 'queued', progress: 0 });
+    // Real Supabase Logic
+    try {
+      await supabase.from('video_jobs').update({ status: 'queued', progress: 0 }).eq('id', job.id);
+      
       setTimeout(() => {
         let progress = 0;
         const interval = setInterval(async () => {
           progress += Math.random() * 40;
-          const jobRef = doc(db, 'video_jobs', job.id);
           if (progress >= 100) {
-            await updateDoc(jobRef, { progress: 100, status: 'completed', updatedAt: serverTimestamp() });
+            await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', job.id);
             clearInterval(interval);
+            addLog(`Clipes renderizados com sucesso: ${job.name}`, 'success');
           } else {
-            await updateDoc(jobRef, { progress: Math.floor(progress), status: 'processing', updatedAt: serverTimestamp() });
+            await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', job.id);
           }
         }, 800);
       }, 500);
+    } catch (error: any) {
+      addLog(`Erro ao reprocessar: ${error.message}`, 'error');
     }
   };
 
@@ -363,14 +407,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-deep overflow-hidden selection:bg-blue-500/30">
+    <div className="flex flex-col h-screen bg-bg-deep overflow-hidden selection:bg-purple-500/30">
       <Header user={user} />
       
       <div className="flex grow overflow-hidden">
         <Sidebar />
         
         <main className="flex-1 p-8 flex flex-col gap-8 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-blue-500/5 blur-[150px] -z-10"></div>
+          <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-purple-500/5 blur-[150px] -z-10"></div>
           
           <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} />
           

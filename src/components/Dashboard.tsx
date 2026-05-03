@@ -37,25 +37,36 @@ export default function Dashboard() {
   const logout = () => console.log('Logout');
   const [activeJobs, setActiveJobs] = useState<VideoJob[]>([]);
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
+  const [toolSettings, setToolSettings] = useState<Record<string, any>>({});
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [engineStatus, setEngineStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'error' | 'success'}[]>([]);
   const socketRef = useRef<Socket | null>(null);
+
+  const activeToolDef = TOOLS.find(t => t.type === selectedTool);
+
+  // Sync settings when tool changes
+  useEffect(() => {
+    if (activeToolDef) {
+      const defaults = activeToolDef.settings.reduce((acc, s) => ({ ...acc, [s.id]: s.default }), {});
+      setToolSettings(prev => ({ ...defaults, ...prev }));
+    }
+  }, [selectedTool, activeToolDef]);
 
   const addLog = (msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
     setLogs(prev => [...prev.slice(-49), { msg, type }]);
   };
 
   useEffect(() => {
-    // Determine backend URL (handle both local and production)
     const backendUrl = window.location.origin;
     socketRef.current = io(backendUrl);
     
-    const checkEngine = async () => {
+    const checkEngine = async (isRetry = false) => {
       try {
         const r = await fetch('/api/health');
         if (r.ok) {
           setEngineStatus('online');
+          if (isRetry) addLog('Conexão restabelecida com o cluster Xeon.', 'success');
         } else {
           setEngineStatus('offline');
         }
@@ -65,7 +76,7 @@ export default function Dashboard() {
     };
     
     checkEngine();
-    const clusterCheckInterval = setInterval(checkEngine, 30000);
+    const clusterCheckInterval = setInterval(() => checkEngine(true), 15000);
 
     socketRef.current.on('jobUpdate', (update: Partial<VideoJob>) => {
       setActiveJobs(prev => prev.map(job => 
@@ -95,7 +106,7 @@ export default function Dashboard() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('tool', selectedTool);
-    formData.append('settings', JSON.stringify({}));
+    formData.append('settings', JSON.stringify(toolSettings));
 
     try {
       const response = await fetch('/api/v1/upload', {
@@ -127,20 +138,73 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen w-full bg-[#050505] text-white selection:bg-purple-500/30 overflow-hidden font-sans">
-      {/* SIDEBAR MINIMALISTA */}
-      <aside className="w-20 border-r border-white/5 bg-black flex flex-col items-center py-8 gap-10">
-        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-           <Activity className="w-6 h-6 text-white" />
+      {/* SIDEBAR DE CONTROLE */}
+      <aside className="w-72 border-r border-white/5 bg-black flex flex-col py-8">
+        <div className="flex-1 flex flex-col gap-8 px-4 overflow-y-auto custom-scrollbar">
+           {/* LOGO AREA */}
+           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl mx-auto shrink-0 mb-4 mt-2">
+              <Activity className="w-6 h-6 text-white" />
+           </div>
+
+           <div className="h-px bg-white/5 w-full"></div>
+
+           {/* TOOL SETTINGS PANEL */}
+           <div className="flex-1 flex flex-col gap-8">
+              <div className="space-y-4">
+                 <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-500 flex items-center gap-2">
+                    <Zap className="w-3 h-3" /> Configs IA
+                 </h3>
+                 
+                 <div className="space-y-6">
+                    {activeToolDef?.settings.map(setting => (
+                      <div key={setting.id} className="flex flex-col gap-3">
+                        <label className="text-[9px] font-mono uppercase text-gray-500 font-bold">{setting.label}</label>
+                        {setting.type === 'select' && (
+                            <select 
+                              value={toolSettings[setting.id] || setting.default}
+                              onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] text-white focus:border-purple-500/50 outline-none transition-all"
+                            >
+                              {setting.options?.map(opt => <option key={opt} value={opt} className="bg-[#0a0a0a] text-white">{opt}</option>)}
+                            </select>
+                        )}
+                        {setting.type === 'slider' && (
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="range"
+                              min={setting.min}
+                              max={setting.max}
+                              value={toolSettings[setting.id] || setting.default}
+                              onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: parseInt(e.target.value) }))}
+                              className="accent-purple-500 h-1 grow cursor-pointer"
+                            />
+                            <span className="text-[10px] font-mono text-purple-400 w-8">{toolSettings[setting.id] || setting.default}%</span>
+                          </div>
+                        )}
+                        {setting.type === 'toggle' && (
+                           <button 
+                            onClick={() => setToolSettings(prev => ({ ...prev, [setting.id]: !prev[setting.id] }))}
+                            className={`w-full py-2 rounded-lg text-[9px] font-bold tracking-widest transition-all border ${
+                              toolSettings[setting.id] 
+                                ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
+                                : 'bg-white/5 border-white/10 text-gray-600'
+                            }`}
+                          >
+                            {toolSettings[setting.id] ? 'ATIVADO' : 'DESATIVADO'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-6">
-           <button className="p-3 text-purple-500 bg-purple-500/10 rounded-xl transition-all"><Layout className="w-5 h-5" /></button>
-           <button className="p-3 text-gray-600 hover:text-white transition-all"><BarChart className="w-5 h-5" /></button>
-           <button className="p-3 text-gray-600 hover:text-white transition-all"><Calendar className="w-5 h-5" /></button>
-           <button className="p-3 text-gray-600 hover:text-white transition-all"><Settings className="w-5 h-5" /></button>
-        </nav>
-
-        <button onClick={logout} className="p-3 text-gray-600 hover:text-rose-500 transition-all"><LogOut className="w-5 h-5" /></button>
+        <div className="p-4 border-t border-white/5">
+           <button onClick={logout} className="w-12 h-12 rounded-2xl flex items-center justify-center text-gray-600 hover:text-rose-500 hover:bg-rose-500/10 transition-all mx-auto">
+              <LogOut className="w-5 h-5" />
+           </button>
+        </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}

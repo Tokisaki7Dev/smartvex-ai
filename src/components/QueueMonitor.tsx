@@ -43,10 +43,10 @@ export function QueueMonitor({
         <div className="p-6 border-b border-white/5 flex justify-between items-center shrink-0 bg-black">
           <h3 className="font-display font-black text-[10px] tracking-[0.3em] uppercase flex items-center gap-3 text-purple-400">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]"></span>
-            Assets Manager
+            Gerenciador de Ativos
           </h3>
           <div className="flex items-center gap-2 px-2 py-0.5 bg-white/5 rounded border border-white/10">
-             <span className="text-[8px] font-mono text-gray-500 uppercase">Cloud storage: <span className="text-white">Active</span></span>
+             <span className="text-[8px] font-mono text-gray-500 uppercase">Armazenamento: <span className="text-white">Ativo</span></span>
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export function QueueMonitor({
                 <div className="w-16 h-16 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-center mb-6 text-gray-800">
                   <FileVideo className="w-8 h-8 opacity-20" />
                 </div>
-                <span className="text-[9px] font-mono uppercase tracking-[0.4em] mb-2 text-gray-700">Empty_Vault</span>
+                <span className="text-[9px] font-mono uppercase tracking-[0.4em] mb-2 text-gray-700">Cofre_Vazio</span>
                 <p className="text-[10px] max-w-[170px] leading-relaxed font-mono text-gray-600">
                   Nenhum ativo detectado no cluster Xeon v4.2
                 </p>
@@ -84,7 +84,7 @@ export function QueueMonitor({
                       <div className="flex items-center gap-3 text-[9px] font-mono mt-1.5 uppercase font-medium">
                         <span className="text-purple-400">{job.tool}</span>
                         <div className="w-1 h-1 bg-white/10 rounded-full"></div>
-                        <span className="text-gray-600">2.4m remaining</span>
+                        <span className="text-gray-600">Restante estimado: 2.4m</span>
                       </div>
                     </div>
                     
@@ -165,7 +165,7 @@ export function QueueMonitor({
         <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between sticky top-0 bg-black z-10">
           <div className="flex items-center gap-3">
             <TerminalIcon className="w-3 h-3 text-purple-500" />
-            <span className="text-[9px] font-mono font-bold tracking-[0.3em] text-gray-600 uppercase">Stream Logs</span>
+            <span className="text-[9px] font-mono font-bold tracking-[0.3em] text-gray-600 uppercase">Logs de Processamento</span>
           </div>
           <div className="flex gap-1.5 opacity-20">
             <div className="w-1 h-1 rounded-full bg-purple-500 animate-ping"></div>

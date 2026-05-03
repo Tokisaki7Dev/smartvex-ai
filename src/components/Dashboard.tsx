@@ -4,10 +4,26 @@ import {
   LogIn,
   Scissors,
   Type,
-  Smartphone
+  Smartphone,
+  Terminal as TerminalIcon,
+  Download,
+  FileVideo,
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  Settings,
+  LayoutDashboard,
+  BarChart3,
+  History,
+  LogOut,
+  User,
+  Mic,
+  Film,
+  Wand2
 } from "lucide-react";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { io, Socket } from "socket.io-client";
 import { ToolType, VideoJob, TOOLS } from "../types";
 import { Header, Sidebar } from "./Navigation";
 import { ToolSelector } from "./ToolSelector";
@@ -22,7 +38,60 @@ export default function Dashboard() {
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
   const [toolSettings, setToolSettings] = useState<Record<string, any>>({});
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [backendUrl, setBackendUrl] = useState<string>(localStorage.getItem('smartvex_backend_url') || '');
+  const [backendUrl, setBackendUrl] = useState<string>(window.location.origin);
+  const socketRef = useRef<Socket | null>(null);
+
+  const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'error' | 'success'}[]>([]);
+
+  const addLog = useCallback((msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
+    setLogs(prev => {
+      const newLogs = [...prev.slice(-30), { msg, type }];
+      if (user) {
+        localStorage.setItem(`logs_${user.uid}`, JSON.stringify(newLogs));
+      }
+      return newLogs;
+    });
+  }, [user]);
+
+  useEffect(() => {
+    socketRef.current = io(backendUrl);
+    
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [backendUrl]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    activeJobs.forEach(job => {
+      if (job.status === 'processing' || job.status === 'queued') {
+        socket.on(`job:${job.id}:status`, (data: { status: string, progress: number, error?: string }) => {
+          setActiveJobs(prev => {
+            const updated = prev.map(j => j.id === job.id ? { 
+              ...j, 
+              status: data.status as any, 
+              progress: data.progress,
+              outputUrl: data.status === 'completed' ? `/api/v1/download/${job.id}` : j.outputUrl
+            } : j);
+            if (user) localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updated));
+            return updated;
+          });
+
+          if (data.status === 'completed') {
+            addLog(`Processamento finalizado: ${job.name}`, 'success');
+          } else if (data.status === 'failed') {
+            addLog(`Erro no processamento (${job.name}): ${data.error}`, 'error');
+          }
+        });
+      }
+    });
+
+    return () => {
+      activeJobs.forEach(job => socket.off(`job:${job.id}:status`));
+    };
+  }, [activeJobs, user, addLog]);
 
   const activeToolDef = useMemo(() => TOOLS.find(t => t.type === selectedTool), [selectedTool]);
 
@@ -36,17 +105,6 @@ export default function Dashboard() {
     }
   }, [selectedTool, activeToolDef]);
   const [view, setView] = useState<'dashboard' | 'analytics' | 'terminal' | 'settings'>('dashboard');
-  const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'error' | 'success'}[]>([]);
-
-  const addLog = useCallback((msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
-    setLogs(prev => {
-      const newLogs = [...prev.slice(-30), { msg, type }];
-      if (user) {
-        localStorage.setItem(`logs_${user.uid}`, JSON.stringify(newLogs));
-      }
-      return newLogs;
-    });
-  }, [user]);
 
   // Auth Effects
   useEffect(() => {
@@ -228,89 +286,33 @@ Obrigado por utilizar o SmartVex!
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
 
-    const toolMessages: Record<ToolType, { start: string, success: string, step: string }> = {
-      'Clipping': { 
-        start: 'IA analisando hooks e retenção...', 
-        success: 'Recortes virais gerados com sucesso!',
-        step: 'Detectando rostos e reenquadrando para 9:16...'
-      },
-      'Captioning': {
-        start: 'Escutando áudio e gerando transcrição...',
-        success: 'Legendas dinâmicas aplicadas!',
-        step: 'Sincronizando emojis e animações de texto...'
-      },
-      'Compression': {
-        start: 'Otimizando bitrate sem perder qualidade...',
-        success: 'Arquivo comprimido com sucesso!',
-        step: 'Re-encodando frames pesados...'
-      },
-      'Conversion': {
-        start: 'Alterando container e formato...',
-        success: 'Vídeo convertido com sucesso!',
-        step: 'Preservando metadados de cor...'
-      },
-      'AudioCleaning': {
-        start: 'IA removendo ruído de fundo...',
-        success: 'Áudio cristalino processado!',
-        step: 'Equalizando ganho e removendo reverberação...'
-      },
-      'Enhancer': {
-        start: 'Escalando resolução e nitidez...',
-        success: 'Vídeo aprimorado para 4K!',
-        step: 'Aplicando filtros de restauração Xeon-optimized...'
-      }
-    };
-
-    const msgs = toolMessages[selectedTool];
-    
-    const settingsStr = Object.entries(toolSettings)
-      .map(([k, v]) => `${k.toUpperCase()}=${v}`)
-      .join(' | ');
-
     addLog(`Upload iniciado: ${file.name} [${(file.size / 1024 / 1024).toFixed(2)}MB]`, 'info');
-    addLog(`CONFIG: ${settingsStr}`, 'info');
 
-    if (backendUrl) {
-      addLog(`[XEON_LINK] Tentando conexão com cluster remoto em ${backendUrl}...`, 'info');
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('tool', selectedTool);
-        formData.append('settings', settingsStr);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('tool', selectedTool);
+    formData.append('settings', JSON.stringify(toolSettings));
 
-        fetch(`${backendUrl.replace(/\/$/, '')}/api/v1/process`, {
-          method: 'POST',
-          body: formData
-        }).then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            addLog(`[XEON_SUCCESS] Handshake completo. Job de processamento alocado no servidor Xeon (ID: ${data.job_id}).`, 'success');
-            addLog(`Otimizando pipeline para algoritmos de IA proprietários...`, 'info');
-          } else {
-            addLog(`[XEON_ERROR] Backend recusou a tarefa. Ativando Sandbox local (Limitação de GPU).`, 'warn');
-          }
-        }).catch(() => {
-          addLog(`[XEON_OFFLINE] Cluster não encontrado. Certifique-se que 'server.py' está rodando no seu servidor.`, 'error');
-        });
-      } catch (e) {
-        addLog(`Falha crítica de comunicação com o cluster.`, 'error');
-      }
-    }
+    try {
+      const response = await fetch('/api/v1/upload', {
+        method: 'POST',
+        body: formData
+      });
 
-    // Create a local object URL to simulate downloading the "processed" file
-    const simulatedOutputUrl = URL.createObjectURL(file);
+      if (!response.ok) throw new Error('Falha no upload');
 
-    if (user.isGuest) {
-      const fakeId = Math.random().toString(36).substr(2, 9);
+      const data = await response.json();
+      const jobId = data.jobId;
+
       const newJob: VideoJob = {
-        id: fakeId,
+        id: jobId,
         userId: user.uid,
         name: file.name,
         tool: selectedTool,
         progress: 0,
         status: 'queued',
         createdAt: new Date(),
-        outputUrl: simulatedOutputUrl
+        outputUrl: null
       };
       
       setActiveJobs(prev => {
@@ -318,93 +320,13 @@ Obrigado por utilizar o SmartVex!
         localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(updated));
         return updated;
       });
-      setSelectedJobId(fakeId);
-
-      // Guest Simulation - Fast Processing
-      setTimeout(() => {
-        addLog(`FFmpeg v6.0-static: Init Hardware Accelerator [NVDEC/CUDA]`, 'info');
-        addLog(msgs.start, 'success');
-        
-        setActiveJobs(prev => {
-          const nj = prev.map(j => j.id === fakeId ? { ...j, status: 'processing' as const, progress: 10 } : j);
-          localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(nj));
-          return nj;
-        });
-        
-        let progress = 10;
-        const interval = setInterval(() => {
-          progress += Math.random() * 15 + 5; 
-          if (progress >= 100) {
-            progress = 100;
-            setActiveJobs(prev => {
-              const nj = prev.map(j => j.id === fakeId ? { ...j, progress: 100, status: 'completed' as const } : j);
-              localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(nj));
-              return nj;
-            });
-            addLog(`IO_WRITE: Finalizando container e metadados...`, 'info');
-            addLog(msgs.success, 'success');
-            clearInterval(interval);
-          } else {
-            if (progress > 30 && progress < 45) addLog(`X265: Pass 1/2 [Encoding Multi-thread]`, 'info');
-            if (progress > 60 && progress < 75) addLog(msgs.step, 'info');
-            setActiveJobs(prev => {
-              const nj = prev.map(j => j.id === fakeId ? { ...j, progress: Math.floor(progress), status: 'processing' as const } : j);
-              localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(nj));
-              return nj;
-            });
-          }
-        }, 1000); 
-      }, 800);
-      return;
-    }
-
-    // Real Supabase Logic
-    try {
-      const { data, error } = await supabase
-        .from('video_jobs')
-        .insert({
-          user_id: user.uid,
-          name: file.name,
-          tool: selectedTool,
-          progress: 1, // Feedback imediato
-          status: 'queued',
-          output_url: simulatedOutputUrl
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      addLog(`Servidores Xeon alocados (ID: ${data.id.substring(0,8)})`, 'info');
-      setSelectedJobId(data.id);
-
-      // Mock of actual processing
-      let progress = 1;
-      setTimeout(async () => {
-        addLog(`FFmpeg v6.0: Connecting to Xeon GPU Cluster...`, 'info');
-        addLog(msgs.start, 'success');
-        // Update database to processing status
-        await supabase.from('video_jobs').update({ status: 'processing', progress: 5 }).eq('id', data.id);
-        
-        const interval = setInterval(async () => {
-          progress += Math.random() * 12 + 1; 
-          if (progress >= 100) {
-            await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', data.id);
-            clearInterval(interval);
-            addLog(`IO_WRITE: Finalizando container e metadados...`, 'info');
-            addLog(msgs.success, 'success');
-          } else {
-            if (progress > 20 && progress < 35) addLog(`X265: Pass 1/2 [Encoding Multi-thread]`, 'info');
-            if (progress > 50 && progress < 65) addLog(msgs.step, 'info');
-            await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', data.id);
-          }
-        }, 1500);
-      }, 800);
+      setSelectedJobId(jobId);
+      addLog(`Job registrado no cluster Xeon: ${jobId}`, 'success');
 
     } catch (error: any) {
-      addLog(`Erro ao registrar job no banco: ${error.message}`, "error");
+      addLog(`Erro ao enviar vídeo: ${error.message}`, 'error');
     }
-  }, [user, selectedTool, activeJobs, addLog]);
+  }, [user, selectedTool, toolSettings, addLog]);
 
   const handleRetry = async (job: VideoJob) => {
     addLog(`Reiniciando IA para ${job.name}`, 'warn');

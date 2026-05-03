@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidVideoJob(data) {
+      return data.keys().hasAll(['userId', 'name', 'status', 'tool', 'progress', 'createdAt', 'updatedAt'])
+        && data.keys().size() <= 8
+        && data.userId is string && data.userId.size() <= 128
+        && data.name is string && data.name.size() <= 255
+        && data.status in ['queued', 'processing', 'completed', 'failed']
+        && data.tool in ['Cut', 'Caption', 'Compress', 'Convert', 'Audio', 'Enhancer']
+        && data.progress is number && data.progress >= 0 && data.progress <= 100
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /video_jobs/{jobId} {
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isOwner(incoming().userId)
+        && isValidVideoJob(incoming())
+        && incoming().progress == 0
+        && incoming().status == 'queued'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isOwner(existing().userId)
+        && isValidVideoJob(incoming())
+        && incoming().userId == existing().userId
+        && incoming().name == existing().name
+        && incoming().tool == existing().tool
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Progress Update
+          (incoming().diff(existing()).affectedKeys().hasOnly(['progress', 'status', 'updatedAt', 'outputUrl']))
+        )
+        // Terminal state locking
+        && (existing().status != 'completed' && (existing().status != 'failed' || incoming().status == 'queued'));
+
+      allow delete: if false; // For now, no deletion
+    }
+  }
+}

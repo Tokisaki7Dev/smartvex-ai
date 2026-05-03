@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "VideoJob": {
+      "title": "Video Job",
+      "description": "Represents a video processing task.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns the job." },
+        "name": { "type": "string", "description": "The original name of the video file." },
+        "status": { 
+          "type": "string", 
+          "enum": ["queued", "processing", "completed", "failed"],
+          "description": "Current status of the job." 
+        },
+        "tool": { 
+          "type": "string", 
+          "enum": ["Cut", "Caption", "Compress", "Convert", "Audio", "Enhancer"],
+          "description": "The specific processing tool used." 
+        },
+        "outputUrl": { "type": "string", "description": "URL to the processed video file." },
+        "progress": { "type": "number", "description": "Processing percentage (0-100)." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "status", "tool", "progress", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/video_jobs/{jobId}": {
+      "schema": "VideoJob",
+      "description": "Collection of all video processing jobs."
+    }
+  }
+}

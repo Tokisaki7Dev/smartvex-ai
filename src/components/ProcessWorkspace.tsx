@@ -1,4 +1,17 @@
-import { Play, FileVideo, CheckCircle2, AlertCircle, Loader2, DownloadCloud, History, Wand2 } from "lucide-react";
+import { 
+  Play, 
+  FileVideo, 
+  CheckCircle2, 
+  AlertCircle, 
+  Loader2, 
+  DownloadCloud, 
+  History, 
+  Wand2, 
+  BarChart3,
+  Flame,
+  LayoutTemplate,
+  Type
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ToolType, TOOLS, VideoJob } from "../types";
 
@@ -10,6 +23,13 @@ export function ProcessWorkspace({
   activeJob?: VideoJob
 }) {
   const toolDef = TOOLS.find(t => t.type === selectedTool);
+
+  const steps = [
+    { name: 'Upload', status: activeJob ? 'complete' : 'pending' },
+    { name: 'AI Analysis', status: activeJob?.status === 'processing' ? 'active' : activeJob?.status === 'completed' || activeJob?.status === 'failed' ? 'complete' : 'pending' },
+    { name: 'Rendering', status: activeJob?.status === 'completed' ? 'complete' : activeJob?.status === 'processing' && activeJob.progress > 50 ? 'active' : 'pending' },
+    { name: 'Export', status: activeJob?.status === 'completed' ? 'active' : 'pending' }
+  ];
 
   if (!activeJob) {
     return (
@@ -26,28 +46,48 @@ export function ProcessWorkspace({
   return (
     <div className="flex-1 w-full flex flex-col p-8 overflow-hidden">
       <header className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-purple-400">
-            {toolDef && <toolDef.icon className="w-6 h-6" />}
+        <div className="flex items-center gap-6">
+          <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-purple-400 shadow-2xl relative">
+            <div className="absolute inset-0 bg-purple-500/20 blur-xl opacity-50"></div>
+            {toolDef && <toolDef.icon className="w-7 h-7 relative z-10" />}
           </div>
           <div>
-            <h2 className="text-xl font-display font-black uppercase tracking-tight text-white">{activeJob.name}</h2>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-[10px] font-mono text-purple-500 font-bold uppercase tracking-widest">{activeJob.tool}</span>
+            <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white italic">{activeJob.name}</h2>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/20 rounded text-[9px] font-mono text-purple-400 font-black uppercase tracking-widest">
+                <BarChart3 className="w-3 h-3" /> Viral Score: 94
+              </div>
               <span className="w-1 h-1 bg-white/20 rounded-full"></span>
-              <span className="text-[10px] font-mono text-gray-500 uppercase">{activeJob.id.substring(0, 12)}</span>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{activeJob.id.substring(0, 8)}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+             {steps.map((step, idx) => (
+                <div key={step.name} className="flex items-center gap-2">
+                   <div className={`w-2 h-2 rounded-full ${
+                     step.status === 'complete' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' :
+                     step.status === 'active' ? 'bg-purple-500 animate-pulse' : 'bg-gray-800'
+                   }`}></div>
+                   <span className={`text-[9px] font-mono uppercase tracking-widest ${
+                      step.status === 'pending' ? 'text-gray-700' : 'text-gray-400'
+                   }`}>{step.name}</span>
+                   {idx < steps.length - 1 && <div className="w-4 h-px bg-white/10 mx-2"></div>}
+                </div>
+             ))}
+          </div>
+          
+          <div className="h-8 w-px bg-white/10"></div>
+
           {activeJob.status === 'completed' && (
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-6 py-2.5 bg-white text-black rounded-xl font-bold text-xs flex items-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+              className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] flex items-center gap-3 shadow-[0_0_40px_rgba(255,255,255,0.2)] uppercase tracking-widest"
             >
-              <DownloadCloud className="w-4 h-4" /> Exportar Resultado
+              <DownloadCloud className="w-4 h-4" /> Finalize Clipes
             </motion.button>
           )}
         </div>
@@ -55,18 +95,36 @@ export function ProcessWorkspace({
 
       <div className="flex-1 min-h-0 grid grid-cols-12 gap-8">
         {/* VIEWPORT PRINCIPAL */}
-        <div className="col-span-8 flex flex-col gap-6">
-          <div className="flex-1 bg-[#050505] rounded-[2rem] border border-white/5 relative overflow-hidden group">
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.8)_0,transparent_100%)] z-10">
+        <div className="col-span-8 flex flex-col gap-8">
+          <div className="flex-1 bg-black rounded-[3rem] border border-white/5 relative overflow-hidden group shadow-[0_0_100px_rgba(0,0,0,1)]">
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.05)_0,transparent_70%)]"></div>
+             
+             <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-12">
                {activeJob.status === 'processing' && (
-                 <div className="flex flex-col items-center gap-6">
+                 <div className="flex flex-col items-center gap-10 w-full max-w-md">
                     <div className="relative">
-                       <Loader2 className="w-16 h-16 text-purple-500 animate-spin" />
-                       <div className="absolute inset-0 bg-purple-500/20 blur-2xl animate-pulse"></div>
+                       <Loader2 className="w-24 h-24 text-purple-500 animate-spin" />
+                       <div className="absolute inset-0 bg-purple-500/20 blur-3xl animate-pulse"></div>
+                       <div className="absolute inset-x-0 -bottom-12 flex justify-center">
+                          <span className="text-[10px] font-mono text-purple-500 uppercase tracking-[0.5em] font-black">AI Computing</span>
+                       </div>
                     </div>
-                    <div className="text-center">
-                       <div className="text-4xl font-display font-black text-white glow-text mb-2">{activeJob.progress}%</div>
-                       <div className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em] font-bold">Processando Frames IA</div>
+                    <div className="text-center w-full">
+                       <div className="flex items-end justify-center gap-2 mb-4">
+                          <span className="text-8xl font-display font-black text-white glow-text tracking-tighter leading-none">{activeJob.progress}</span>
+                          <span className="text-2xl font-display font-black text-purple-500 leading-none mb-3">%</span>
+                       </div>
+                       
+                       <div className="flex flex-col gap-1">
+                          <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Detectando sentimentos e picos de áudio...</div>
+                          <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-6">
+                             <motion.div 
+                               initial={{ width: 0 }}
+                               animate={{ width: `${activeJob.progress}%` }}
+                               className="h-full bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                             />
+                          </div>
+                       </div>
                     </div>
                  </div>
                )}

@@ -36,8 +36,8 @@ async function startServer() {
     next();
   });
 
-  app.use(express.json({ limit: '100mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+  app.use(express.json({ limit: '1024mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1024mb' }));
 
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -46,10 +46,21 @@ async function startServer() {
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
   });
-  const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit
+  const upload = multer({ storage, limits: { fileSize: 1100 * 1024 * 1024 } }); // 1.1GB limit
 
-  // API Routes
-  app.get('/api/health', (req, res) => res.json({ status: 'ok', engine: 'Xeon' }));
+  // API Routes - Health check FIRST
+  app.get('/ping', (req, res) => res.send('pong'));
+  
+  app.get('/api/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      engine: 'Xeon v4.2', 
+      time: new Date().toISOString(),
+      limits: {
+        upload: '1GB'
+      }
+    });
+  });
 
   app.post('/api/v1/upload', upload.single('file'), (req, res) => {
     try {

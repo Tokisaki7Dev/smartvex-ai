@@ -42,7 +42,7 @@ export default function Dashboard() {
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
   const [toolSettings, setToolSettings] = useState<Record<string, any>>({});
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [backendUrl, setBackendUrl] = useState<string>(window.location.origin);
+  const [backendUrl, setBackendUrl] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
 
   const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'error' | 'success'}[]>([]);
@@ -65,9 +65,7 @@ export default function Dashboard() {
       try {
         const r = await fetch('/api/health');
         if (r.ok) {
-          const data = await r.json();
           setEngineStatus('online');
-          console.log('Engine Response:', data);
         } else {
           setEngineStatus('offline');
         }
@@ -127,7 +125,8 @@ export default function Dashboard() {
       setToolSettings(prev => ({ ...defaults, ...prev }));
     }
   }, [selectedTool, activeToolDef]);
-  const [view, setView] = useState<'dashboard' | 'analytics' | 'terminal' | 'settings'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'projects' | 'analytics' | 'terminal' | 'settings'>('dashboard');
+  const [isImporting, setIsImporting] = useState(false);
 
   // Auth Effects
   useEffect(() => {
@@ -308,6 +307,13 @@ Obrigado por utilizar o SmartVex!
 
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
+    
+    // 1GB limit check client-side
+    const MAX_SIZE = 1024 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      addLog(`Arquivo muito grande: ${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB. Limite é 1GB.`, 'error');
+      return;
+    }
 
     addLog(`Upload iniciado: ${file.name} [${(file.size / 1024 / 1024).toFixed(2)}MB]`, 'info');
     addLog(`Pipeline: Detectando infraestrutura Xeon v4.2...`, 'info');
@@ -319,10 +325,7 @@ Obrigado por utilizar o SmartVex!
 
     try {
       addLog(`Transmitindo via túnel de dados seguro...`, 'info');
-      const uploadUrl = `${backendUrl}/api/v1/upload`;
-      console.log('Uploading to:', uploadUrl);
-      
-      const response = await fetch(uploadUrl, {
+      const response = await fetch('/api/v1/upload', {
         method: 'POST',
         body: formData
       });
@@ -529,84 +532,121 @@ Obrigado por utilizar o SmartVex!
 
       {/* 2. PAINEL DE CONFIGURAÇÃO E TOOL SELECTOR */}
       <aside className="w-85 border-r border-white/5 bg-[#0a0a0a] flex flex-col overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-white/5 bg-gradient-to-b from-purple-500/5 to-transparent">
-          <h2 className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 mb-6 font-bold flex items-center gap-2">
-             <Activity className="w-3 h-3 text-purple-500" /> Pipeline Control
-          </h2>
+        <div className="p-6 border-b border-white/5 bg-[#0a0a0a]">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 font-bold flex items-center gap-2">
+               <Activity className="w-3 h-3 text-purple-500" /> Control Unit
+            </h2>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+          </div>
           
           {/* BOTÃO DE IMPORTAR FIXO E DESTAQUE */}
           <motion.label 
-            whileHover={{ scale: 1.02, backgroundColor: 'rgba(168,85,247,0.1)' }}
+            whileHover={{ scale: 1.02, backgroundColor: 'rgba(168,85,247,0.05)' }}
             whileTap={{ scale: 0.98 }}
-            className="w-full h-40 border-2 border-dashed border-purple-500/20 rounded-3xl flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-purple-500/50 transition-all group mb-8 relative overflow-hidden"
+            className="w-full h-32 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-purple-500/50 transition-all group mb-6 relative overflow-hidden bg-white/[0.02]"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <input 
               type="file" 
               className="hidden" 
               accept="video/*" 
               onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} 
             />
-            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all shadow-xl">
-              <Plus className="w-8 h-8" />
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
+              <Plus className="w-5 h-5" />
             </div>
             <div className="text-center">
-              <span className="block text-[11px] font-black uppercase tracking-[0.2em] text-white">Importar Media</span>
-              <span className="block text-[9px] font-mono text-gray-500 mt-1 uppercase">Cloud Xeon Cluster Ready</span>
+              <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-white">Importar Media</span>
+              <span className="block text-[8px] font-mono text-gray-500 mt-1 uppercase">Xeon Cluster Ready</span>
             </div>
           </motion.label>
 
-          <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} vertical={true} />
+          <div className="space-y-1">
+             <h3 className="text-[9px] font-mono font-bold uppercase tracking-widest text-gray-600 mb-2">Select Tool</h3>
+             <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} vertical={true} />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-8 custom-scrollbar">
-           <div className="pt-8 mb-4">
-             <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-500 mb-6 flex items-center gap-2">
-               <Wand2 className="w-3 h-3" /> Parâmetros IA
-             </h3>
-             
-             <div className="space-y-6">
-                {activeToolDef?.settings.map(setting => (
-                  <div key={setting.id} className="flex flex-col gap-2">
-                    <label className="text-[10px] font-mono uppercase text-gray-500">{setting.label}</label>
-                    {setting.type === 'select' && (
-                        <select 
-                          value={toolSettings[setting.id] || setting.default}
-                          onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:border-purple-500/50 outline-none transition-all"
+        <div className="flex-1 overflow-y-auto px-6 pb-8 custom-scrollbar bg-[#080808]">
+           {selectedJobId && (
+             <div className="pt-8">
+               <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-500 mb-6 flex items-center gap-2">
+                 <Wand2 className="w-3 h-3" /> Configurações IA
+               </h3>
+               
+               <div className="space-y-6">
+                  {activeToolDef?.settings.map(setting => (
+                    <div key={setting.id} className="flex flex-col gap-2">
+                      <label className="text-[10px] font-mono uppercase text-gray-500">{setting.label}</label>
+                      {setting.type === 'select' && (
+                          <select 
+                            value={toolSettings[setting.id] || setting.default}
+                            onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:border-purple-500/50 outline-none transition-all"
+                          >
+                            {setting.options?.map(opt => <option key={opt} value={opt} className="bg-[#0a0a0a] text-white">{opt}</option>)}
+                          </select>
+                      )}
+                      {setting.type === 'slider' && (
+                        <div className="flex items-center gap-4">
+                          <input 
+                            type="range"
+                            min={setting.min}
+                            max={setting.max}
+                            value={toolSettings[setting.id] || setting.default}
+                            onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: parseInt(e.target.value) }))}
+                            className="accent-purple-500 h-1 grow"
+                          />
+                          <span className="text-[10px] font-mono text-purple-400 w-8">{toolSettings[setting.id] || setting.default}%</span>
+                        </div>
+                      )}
+                      {setting.type === 'toggle' && (
+                         <button 
+                          onClick={() => setToolSettings(prev => ({ ...prev, [setting.id]: !prev[setting.id] }))}
+                          className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border ${
+                            toolSettings[setting.id] 
+                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
+                              : 'bg-white/5 border-white/10 text-gray-500 opacity-50'
+                          }`}
                         >
-                          {setting.options?.map(opt => <option key={opt} value={opt} className="bg-[#0a0a0a] text-white">{opt}</option>)}
-                        </select>
-                    )}
-                    {setting.type === 'slider' && (
-                      <div className="flex items-center gap-4">
-                        <input 
-                          type="range"
-                          min={setting.min}
-                          max={setting.max}
-                          value={toolSettings[setting.id] || setting.default}
-                          onChange={(e) => setToolSettings(prev => ({ ...prev, [setting.id]: parseInt(e.target.value) }))}
-                          className="accent-purple-500 h-1 grow"
-                        />
-                        <span className="text-[10px] font-mono text-purple-400 w-8">{toolSettings[setting.id] || setting.default}%</span>
-                      </div>
-                    )}
-                    {setting.type === 'toggle' && (
-                       <button 
-                        onClick={() => setToolSettings(prev => ({ ...prev, [setting.id]: !prev[setting.id] }))}
-                        className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border ${
-                          toolSettings[setting.id] 
-                            ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
-                            : 'bg-white/5 border-white/10 text-gray-500 opacity-50'
-                        }`}
-                      >
-                        {toolSettings[setting.id] ? 'RECURSO ATIVO' : 'RECURSO INATIVO'}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                          {toolSettings[setting.id] ? 'RECURSO ATIVO' : 'RECURSO INATIVO'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+               </div>
              </div>
-           </div>
+           )}
+           
+           {!selectedJobId && (
+             <div className="pt-8 space-y-8">
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-600/10 to-pink-500/10 border border-purple-500/20 relative overflow-hidden group">
+                  <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/10 blur-2xl group-hover:bg-purple-500/20 transition-all"></div>
+                  <h4 className="text-white font-bold text-xs mb-1 uppercase tracking-tight">Enterprise Access</h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed font-medium">Unlocked unlimited compute hours for your Xeon nodes.</p>
+                  <button className="mt-4 text-[9px] font-mono uppercase font-black text-purple-400 hover:text-white transition-colors">Upgrade Plan →</button>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[9px] font-mono font-bold text-gray-500 uppercase tracking-[0.2em]">Recents</h4>
+                  {activeJobs.slice(0, 3).map(job => (
+                    <div 
+                      key={job.id} 
+                      onClick={() => setSelectedJobId(job.id)}
+                      className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-purple-400 group-hover:bg-purple-400/10 transition-all">
+                        <FileVideo className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-bold text-white truncate">{job.name}</div>
+                        <div className="text-[9px] font-mono text-gray-500 uppercase">{job.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+           )}
         </div>
       </aside>
 
@@ -615,55 +655,39 @@ Obrigado por utilizar o SmartVex!
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black/50 backdrop-blur-md z-40">
            <div className="flex items-center gap-4">
              <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-mono text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Cpu className="w-3 h-3 text-purple-500" /> Engine: {user.isGuest ? 'Sandbox' : 'Xeon-Optimized'}
+                <Cpu className="w-3 h-3 text-purple-500" /> Pipeline: {activeToolDef?.name || 'Waiting'}
              </div>
              <div className="h-4 w-px bg-white/10"></div>
-             <span className="text-xs font-bold text-white/80 uppercase tracking-tighter italic">{activeToolDef?.name} Pipeline</span>
+             <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-[10px] font-mono text-gray-500 uppercase">Optimization: <span className="text-white">Xeon v4.2 (Enabled)</span></span>
+             </div>
            </div>
            
-           <div className="flex items-center gap-8">
-             <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2">
-                   <div className={`w-1 h-1 rounded-full ${
-                     engineStatus === 'online' ? 'bg-green-500 animate-ping' :
-                     engineStatus === 'offline' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
-                   }`}></div>
-                   <span className={`text-[9px] font-mono uppercase font-black ${
-                     engineStatus === 'online' ? 'text-green-500' :
-                     engineStatus === 'offline' ? 'text-rose-500' : 'text-amber-500'
-                   }`}>
-                     {engineStatus === 'online' ? 'Cluster_Live' : 
-                      engineStatus === 'offline' ? 'Cluster_Offline' : 'Cluster_Check'}
-                   </span>
-                </div>
-                <div className="flex gap-0.5">
-                   {[...Array(8)].map((_, i) => (
-                     <motion.div 
-                        key={i}
-                        animate={{ height: [4, 12, 6, 14, 8] }}
-                        transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-                        className="w-1 bg-purple-500/40 rounded-full"
-                     />
-                   ))}
-                </div>
+           <div className="flex items-center gap-6">
+             <div className="px-5 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl flex items-center gap-3 group cursor-pointer hover:border-purple-500/50 transition-all">
+               <Zap className="w-3 h-3 text-amber-500 group-hover:scale-110 transition-transform" />
+               <span className="text-[10px] font-mono text-purple-400 uppercase font-black tracking-widest">Boost Performance</span>
              </div>
-
-             <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-               <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-               <span className="text-[10px] font-mono text-gray-400 uppercase">Latency: <span className="text-white">12ms</span></span>
+             
+             <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  engineStatus === 'online' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' :
+                  engineStatus === 'offline' ? 'bg-rose-500' : 'bg-amber-500'
+                }`}></div>
+                <span className="text-[10px] font-mono uppercase text-white/50 tracking-widest">Cluster_Live</span>
              </div>
            </div>
         </header>
 
-        <div className="flex-1 flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.03)_0,transparent_100%)]">
-           {/* Visualização de Estado Vazio ou Player */}
+        <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_center,rgba(50,50,50,1)_0,transparent_100%)] p-12">
            <AnimatePresence mode="wait">
              {selectedJobId ? (
                 <motion.div 
                   key={selectedJobId}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
+                  initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 1.02, y: -10 }}
                   className="w-full h-full"
                 >
                   <ProcessWorkspace 
@@ -673,20 +697,78 @@ Obrigado por utilizar o SmartVex!
                 </motion.div>
              ) : (
                 <motion.div 
-                  key="empty"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  className="flex flex-col items-center text-center gap-8"
+                  key="landing"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="w-full max-w-5xl"
                 >
-                  <div className="w-32 h-32 bg-white/[0.02] rounded-[3rem] flex items-center justify-center text-white/10 border border-white/5 relative group">
-                    <div className="absolute inset-0 bg-purple-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <FileVideo className="w-12 h-12 transition-transform duration-500 group-hover:scale-110" />
-                  </div>
-                  <div className="space-y-3">
-                    <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-white">Pronto para Renderizar</h3>
-                    <p className="text-xs text-gray-500 font-mono max-w-xs leading-loose">Selecione uma ferramenta na barra lateral e importe sua mídia para processamento Xeon.</p>
-                  </div>
+                   <div className="text-center mb-16">
+                      <motion.h2 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-5xl font-display font-black text-white italic uppercase tracking-tighter mb-4"
+                      >
+                        Pronto para o Próximo <br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Viral de IA?</span>
+                      </motion.h2>
+                      <p className="text-gray-500 font-mono text-xs uppercase tracking-[0.3em]">Selecione uma ferramenta enterprise abaixo para começar</p>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {TOOLS.map((tool, idx) => (
+                        <motion.div
+                          key={tool.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => setSelectedTool(tool.type)}
+                          className={`p-8 rounded-[2rem] border border-white/5 transition-all cursor-pointer group relative overflow-hidden h-72 flex flex-col justify-between ${
+                            selectedTool === tool.type 
+                            ? 'bg-purple-600/10 border-purple-500/40 shadow-[0_0_80px_rgba(168,85,247,0.1)]' 
+                            : 'bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10'
+                          }`}
+                        >
+                           <div className="absolute -right-8 -top-8 w-32 h-32 bg-purple-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           
+                           <div>
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all ${
+                                selectedTool === tool.type ? 'bg-purple-500 text-white shadow-xl' : 'bg-white/5 text-gray-400'
+                              }`}>
+                                <tool.icon className="w-7 h-7" />
+                              </div>
+                              <h3 className="text-xl font-display font-black text-white uppercase tracking-tight mb-2 italic">{tool.name}</h3>
+                              <p className="text-xs text-gray-500 leading-relaxed font-mono line-clamp-2">{tool.description}</p>
+                           </div>
+
+                           <div className="flex items-center justify-between mt-4">
+                              <span className="text-[9px] font-mono text-purple-400 tracking-widest uppercase font-black">Enterprise Mode</span>
+                              <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-purple-500/50 transition-colors">
+                                 <Plus className="w-4 h-4 text-gray-600 group-hover:text-purple-400" />
+                              </div>
+                           </div>
+                        </motion.div>
+                      ))}
+                   </div>
+
+                   <div className="mt-20 p-10 bg-white/[0.01] border border-dashed border-white/10 rounded-[3rem] text-center max-w-2xl mx-auto flex flex-col items-center gap-6">
+                      <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center border border-purple-500/30">
+                        <FileVideo className="w-8 h-8 text-purple-400" />
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-white font-bold uppercase tracking-tight italic">Nossa IA entra em ação assim que você importa seu arquivo.</h4>
+                        <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">Detectamos rostos, emoções e pontos de retenção automaticamente.</p>
+                      </div>
+                      <label className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-[0.2em] cursor-pointer hover:bg-purple-500 hover:text-white transition-all">
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="video/*" 
+                          onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} 
+                        />
+                        Começar Agora
+                      </label>
+                   </div>
                 </motion.div>
              )}
            </AnimatePresence>

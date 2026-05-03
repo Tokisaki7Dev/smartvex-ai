@@ -8,6 +8,7 @@ import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from 'ffmpeg-static';
 import { fileURLToPath } from 'url';
+import cors from 'cors';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,14 +19,22 @@ if (ffmpegInstaller) {
 
 async function startServer() {
   const app = express();
+  app.use(cors());
   const httpServer = createHttpServer(app);
   const io = new SocketServer(httpServer, {
     cors: { origin: "*" }
   });
 
   const PORT = 3000;
-  const UPLOAD_DIR = path.join(__dirname, 'uploads');
-  const OUTPUT_DIR = path.join(__dirname, 'outputs');
+  // Use /tmp for uploads and outputs to guarantee write access in container
+  const UPLOAD_DIR = '/tmp/uploads';
+  const OUTPUT_DIR = '/tmp/outputs';
+
+  // Request Logging
+  app.use((req, res, next) => {
+    console.log(`[ENGINE_REQ] ${req.method} ${req.url}`);
+    next();
+  });
 
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ extended: true, limit: '100mb' }));
@@ -79,6 +88,16 @@ async function startServer() {
     }
   });
 
+  // Catch unmatched API routes to prevent them falling through to Vite
+  app.all('/api/*', (req, res) => {
+    console.warn(`[API_404] ${req.method} ${req.url}`);
+    res.status(404).json({ 
+      error: 'API Endpoint not found on Xeon cluster.',
+      path: req.url,
+      method: req.method
+    });
+  });
+
   // Global Error Handler for API
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[GLOBAL_ERROR]', err);
@@ -105,6 +124,7 @@ async function startServer() {
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`\x1b[35m[SMARTVEX XEON]\x1b[0m Engine v4.2 ativa em http://0.0.0.0:${PORT}`);
   });
+  httpServer.timeout = 300000; // 5 minutes
 }
 
 function processVideo(jobId: string, input: string, output: string, tool: string, settings: any, io: SocketServer) {

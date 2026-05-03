@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<{ uid: string, displayName: string, photoURL: string, isGuest: boolean } | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeJobs, setActiveJobs] = useState<VideoJob[]>([]);
+  const [engineStatus, setEngineStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
   const [toolSettings, setToolSettings] = useState<Record<string, any>>({});
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -58,6 +59,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     socketRef.current = io(backendUrl);
+
+    // Health check on mount
+    const checkEngine = async () => {
+      try {
+        const r = await fetch('/api/health');
+        if (r.ok) {
+          const data = await r.json();
+          setEngineStatus('online');
+          console.log('Engine Response:', data);
+        } else {
+          setEngineStatus('offline');
+        }
+      } catch (err) {
+        setEngineStatus('offline');
+        console.error('Engine connection failed:', err);
+      }
+    };
+    
+    checkEngine();
     
     return () => {
       socketRef.current?.disconnect();
@@ -299,7 +319,10 @@ Obrigado por utilizar o SmartVex!
 
     try {
       addLog(`Transmitindo via túnel de dados seguro...`, 'info');
-      const response = await fetch('/api/v1/upload', {
+      const uploadUrl = `${backendUrl}/api/v1/upload`;
+      console.log('Uploading to:', uploadUrl);
+      
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
       });
@@ -601,8 +624,17 @@ Obrigado por utilizar o SmartVex!
            <div className="flex items-center gap-8">
              <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-2">
-                   <div className="w-1 h-1 bg-green-500 rounded-full animate-ping"></div>
-                   <span className="text-[9px] font-mono text-green-500 uppercase font-black">Cluster_Live</span>
+                   <div className={`w-1 h-1 rounded-full ${
+                     engineStatus === 'online' ? 'bg-green-500 animate-ping' :
+                     engineStatus === 'offline' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
+                   }`}></div>
+                   <span className={`text-[9px] font-mono uppercase font-black ${
+                     engineStatus === 'online' ? 'text-green-500' :
+                     engineStatus === 'offline' ? 'text-rose-500' : 'text-amber-500'
+                   }`}>
+                     {engineStatus === 'online' ? 'Cluster_Live' : 
+                      engineStatus === 'offline' ? 'Cluster_Offline' : 'Cluster_Check'}
+                   </span>
                 </div>
                 <div className="flex gap-0.5">
                    {[...Array(8)].map((_, i) => (

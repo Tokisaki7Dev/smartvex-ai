@@ -3,7 +3,8 @@ import {
   Terminal as TerminalIcon, 
   LayoutGrid, 
   BarChart3, 
-  Settings 
+  Settings,
+  LogIn
 } from "lucide-react";
 import { motion } from "motion/react";
 import { supabase } from "../lib/supabase";
@@ -27,6 +28,19 @@ export function Header({ user }: { user: any }) {
       </div>
       
       <div className="flex items-center gap-6">
+        {user.isGuest && (
+          <button 
+            onClick={async () => {
+              await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin }
+              });
+            }}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-full text-[11px] font-black uppercase tracking-tighter hover:brightness-110 shadow-lg shadow-purple-500/20 transition-all"
+          >
+            Sincronizar Nuvem <LogIn className="w-3 h-3" />
+          </button>
+        )}
         <div className="hidden lg:flex items-center gap-8 bg-white/5 px-4 py-2 rounded-full border border-white/5">
           <div className="flex flex-col items-end">
             <span className="text-white text-[11px] font-bold leading-none">{user.displayName}</span>
@@ -59,34 +73,50 @@ export function Header({ user }: { user: any }) {
   );
 }
 
-export function Sidebar() {
-  const handleClick = (feature: string) => {
-    alert(`Redirecionando para o módulo: ${feature} (${feature} indisponível na arquitetura free)`);
-  };
-
+export function Sidebar({ activeView, onSelectView }: { activeView: string, onSelectView: (v: any) => void }) {
   return (
     <aside className="w-20 border-r border-white/5 flex flex-col items-center py-10 gap-12 shrink-0 bg-black/40 relative z-10">
-      <motion.div whileHover={{ scale: 1.1 }} className="text-purple-500 cursor-pointer shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/10 p-3 rounded-2xl">
+      <motion.div 
+        whileHover={{ scale: 1.1 }} 
+        onClick={() => onSelectView('dashboard')}
+        className={`cursor-pointer transition-all p-3 rounded-2xl ${
+          activeView === 'dashboard' 
+            ? 'text-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/10' 
+            : 'text-gray-500 hover:text-purple-400'
+        }`}
+      >
         <LayoutGrid className="w-6 h-6" />
       </motion.div>
       <motion.div 
         whileHover={{ scale: 1.1 }} 
-        onClick={() => handleClick('Analytics')}
-        className="opacity-40 hover:opacity-100 cursor-pointer hover:text-purple-500 transition-all p-3"
+        onClick={() => onSelectView('analytics')}
+        className={`cursor-pointer transition-all p-3 rounded-2xl ${
+          activeView === 'analytics' 
+            ? 'text-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/10' 
+            : 'text-gray-500 hover:text-purple-400 opacity-40 hover:opacity-100'
+        }`}
       >
         <BarChart3 className="w-6 h-6" />
       </motion.div>
       <motion.div 
         whileHover={{ scale: 1.1 }} 
-        onClick={() => handleClick('Server Terminal')}
-        className="opacity-40 hover:opacity-100 cursor-pointer hover:text-purple-500 transition-all p-3"
+        onClick={() => onSelectView('terminal')}
+        className={`cursor-pointer transition-all p-3 rounded-2xl ${
+          activeView === 'terminal' 
+            ? 'text-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/10' 
+            : 'text-gray-500 hover:text-purple-400 opacity-40 hover:opacity-100'
+        }`}
       >
         <TerminalIcon className="w-6 h-6" />
       </motion.div>
       <motion.div 
         whileHover={{ scale: 1.1 }} 
-        onClick={() => handleClick('Settings')}
-        className="mt-auto mb-6 opacity-40 hover:opacity-100 cursor-pointer transition-all p-3"
+        onClick={() => onSelectView('settings')}
+        className={`mt-auto mb-6 cursor-pointer transition-all p-3 rounded-2xl ${
+          activeView === 'settings' 
+            ? 'text-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/10' 
+            : 'text-gray-500 hover:text-purple-400 opacity-40 hover:opacity-100'
+        }`}
       >
         <Settings className="w-6 h-6" />
       </motion.div>

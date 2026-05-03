@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [activeJobs, setActiveJobs] = useState<VideoJob[]>([]);
   const [selectedTool, setSelectedTool] = useState<ToolType>('Clipping');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [view, setView] = useState<'dashboard' | 'analytics' | 'terminal' | 'settings'>('dashboard');
   const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'error' | 'success'}[]>([]);
 
   const addLog = useCallback((msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
@@ -188,6 +189,40 @@ export default function Dashboard() {
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
 
+    const toolMessages: Record<ToolType, { start: string, success: string, step: string }> = {
+      'Clipping': { 
+        start: 'IA analisando hooks e retenção...', 
+        success: 'Recortes virais gerados com sucesso!',
+        step: 'Detectando rostos e reenquadrando para 9:16...'
+      },
+      'Subtitle': {
+        start: 'Escutando áudio e gerando transcrição...',
+        success: 'Legendas dinâmicas aplicadas!',
+        step: 'Sincronizando emojis e animações de texto...'
+      },
+      'Compress': {
+        start: 'Otimizando bitrate sem perder qualidade...',
+        success: 'Arquivo comprimido com sucesso!',
+        step: 'Re-encodando frames pesados...'
+      },
+      'Convert': {
+        start: 'Alterando container e formato...',
+        success: 'Vídeo convertido com sucesso!',
+        step: 'Preservando metadados de cor...'
+      },
+      'Audio': {
+        start: 'IA removendo ruído de fundo...',
+        success: 'Áudio cristalino processado!',
+        step: 'Equalizando ganho e removendo reverberação...'
+      },
+      'Enhancer': {
+        start: 'Escalando resolução e nitidez...',
+        success: 'Vídeo aprimorado para 4K!',
+        step: 'Aplicando filtros de restauração Xeon-optimized...'
+      }
+    };
+
+    const msgs = toolMessages[selectedTool];
     addLog(`Upload iniciado: ${file.name} [${(file.size / 1024 / 1024).toFixed(2)}MB]`, 'info');
 
     // Create a local object URL to simulate downloading the "processed" file
@@ -213,10 +248,10 @@ export default function Dashboard() {
 
       // Guest Simulation - Fast Processing
       setTimeout(() => {
-        addLog(`AI Processing Iniciado: ${file.name} via ${selectedTool}`, 'success');
+        addLog(msgs.start, 'success');
         let progress = 0;
         const interval = setInterval(() => {
-          progress += Math.random() * 40; // Super fast processing for free tier UX
+          progress += Math.random() * 25; 
           if (progress >= 100) {
             progress = 100;
             setActiveJobs(prev => {
@@ -224,12 +259,13 @@ export default function Dashboard() {
               localStorage.setItem(`jobs_${user.uid}`, JSON.stringify(nj));
               return nj;
             });
-            addLog(`Clipes renderizados com sucesso: ${file.name}`, 'success');
+            addLog(msgs.success, 'success');
             clearInterval(interval);
           } else {
+            if (progress > 50 && progress < 60) addLog(msgs.step, 'info');
             setActiveJobs(prev => prev.map(j => j.id === fakeId ? { ...j, progress: Math.floor(progress), status: 'processing' as const } : j));
           }
-        }, 500); // Trigger every 500ms
+        }, 800); 
       }, 500);
       return;
     }
@@ -251,21 +287,24 @@ export default function Dashboard() {
         
       if (error) throw error;
       
-      addLog(`Job registrado na nuvem: ${data.id}`, 'info');
+      addLog(`Job registrado na nuvem (ID: ${data.id.substring(0,8)})`, 'info');
       setSelectedJobId(data.id);
 
-      // Mock of actual processing (faster for free tier constraints)
+      // Mock of actual processing
       let progress = 0;
+      setTimeout(() => addLog(msgs.start, 'success'), 500);
+      
       const interval = setInterval(async () => {
-        progress += Math.random() * 40;
+        progress += Math.random() * 20;
         if (progress >= 100) {
           await supabase.from('video_jobs').update({ progress: 100, status: 'completed' }).eq('id', data.id);
           clearInterval(interval);
-          addLog(`Clipes renderizados com sucesso: ${file.name}`, 'success');
+          addLog(msgs.success, 'success');
         } else {
+          if (progress > 45 && progress < 55) addLog(msgs.step, 'info');
           await supabase.from('video_jobs').update({ progress: Math.floor(progress), status: 'processing' }).eq('id', data.id);
         }
-      }, 800);
+      }, 1200);
 
     } catch (error: any) {
       addLog(`Erro ao registrar job no banco: ${error.message}`, "error");
@@ -411,46 +450,79 @@ export default function Dashboard() {
       <Header user={user} />
       
       <div className="flex grow overflow-hidden">
-        <Sidebar />
+        <Sidebar activeView={view} onSelectView={setView} />
         
         <main className="flex-1 p-8 flex flex-col gap-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-purple-500/5 blur-[150px] -z-10"></div>
           
-          <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} />
-          
-          <div className="flex grow gap-8 overflow-hidden">
-            <ProcessWorkspace 
-              selectedTool={selectedTool} 
-              onUpload={handleUpload} 
-            />
-            
-            <QueueMonitor 
-              jobs={activeJobs} 
-              logs={logs} 
-              selectedJobId={selectedJobId}
-              onSelectJob={(id) => setSelectedJobId(id)}
-              onRetry={handleRetry}
-              onDownload={(job) => {
-                if (job.outputUrl && job.outputUrl.startsWith('blob:')) {
-                  try {
-                    const a = document.createElement('a');
-                    a.href = job.outputUrl;
-                    a.download = `processed_${job.name}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    addLog(`Baixando original processado: ${job.name}`, 'success');
-                  } catch (e) {
-                    addLog('Erro ao baixar original. Gerando cópia cacheada...', 'warn');
-                    fallbackDownload(job);
-                  }
-                } else {
-                  addLog('Gerando cópia pós-processada local (Vercel Free Tier)', 'info');
-                  fallbackDownload(job);
-                }
-              }}
-            />
-          </div>
+          <AnimatePresence mode="wait">
+            {view === 'dashboard' ? (
+              <motion.div 
+                key="dashboard"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex flex-col h-full gap-8 overflow-hidden"
+              >
+                <ToolSelector selectedTool={selectedTool} onSelect={(t) => setSelectedTool(t)} />
+                
+                <div className="flex grow gap-8 overflow-hidden">
+                  <ProcessWorkspace 
+                    selectedTool={selectedTool} 
+                    onUpload={handleUpload} 
+                  />
+                  
+                  <QueueMonitor 
+                    jobs={activeJobs} 
+                    logs={logs} 
+                    selectedJobId={selectedJobId}
+                    onSelectJob={(id) => setSelectedJobId(id)}
+                    onRetry={handleRetry}
+                    onDownload={(job) => {
+                      if (job.outputUrl && job.outputUrl.startsWith('blob:')) {
+                        try {
+                          const a = document.createElement('a');
+                          a.href = job.outputUrl;
+                          a.download = `smartvex_${job.tool.toLowerCase()}_${job.name}`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          addLog(`Exportando resultado: ${job.name}`, 'success');
+                        } catch (e) {
+                          addLog('Erro exportação. Usando fallback...', 'warn');
+                          fallbackDownload(job);
+                        }
+                      } else {
+                        fallbackDownload(job);
+                      }
+                    }}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="other"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                className="flex-1 glass-panel rounded-[3rem] flex flex-col items-center justify-center text-center p-12 border-white/5"
+              >
+                <div className="w-24 h-24 bg-purple-500/10 rounded-[2rem] flex items-center justify-center text-purple-500 mb-8 border border-purple-500/20 shadow-[0_0_50px_rgba(168,85,247,0.1)]">
+                  <Sparkles className="w-10 h-10" />
+                </div>
+                <h2 className="text-4xl font-display font-black text-white mb-4 uppercase tracking-tighter">Módulo em Integração</h2>
+                <p className="text-gray-400 max-w-md text-lg leading-relaxed">
+                  O módulo de <span className="text-purple-400 font-bold">{view.toUpperCase()}</span> está sendo sincronizado com os servidores Xeon. Volte em instantes para acessar suas métricas e configurações avançadas.
+                </p>
+                <button 
+                  onClick={() => setView('dashboard')}
+                  className="mt-12 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-100 transition-all flex items-center gap-2"
+                >
+                  Voltar ao Dashboard
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
 

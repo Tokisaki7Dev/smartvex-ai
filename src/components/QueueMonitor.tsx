@@ -43,9 +43,15 @@ export function QueueMonitor({
         <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
           <AnimatePresence initial={false}>
             {jobs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full opacity-5 grayscale py-20">
-                <TerminalIcon className="w-24 h-24 mb-4" />
-                <span className="text-[10px] font-mono uppercase tracking-[1em]">Scanning...</span>
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-20 group">
+                <div className="relative mb-6">
+                  <TerminalIcon className="w-24 h-24 mb-4 group-hover:text-purple-500 transition-colors" />
+                  <div className="absolute inset-0 bg-purple-500/10 blur-3xl rounded-full"></div>
+                </div>
+                <span className="text-[10px] font-mono uppercase tracking-[1em] mb-4">Aguardando Input...</span>
+                <p className="text-[11px] max-w-[200px] leading-relaxed">
+                  Utilize o painel ao lado para importar seu primeiro vídeo e ver a mágica acontecer.
+                </p>
               </div>
             ) : (
               jobs.map((job, i) => (

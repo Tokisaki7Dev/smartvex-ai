@@ -97,27 +97,37 @@ export function ProcessWorkspace({
           </motion.div>
         ) : (
           <>
-            <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center transition-all duration-300 ${
-              isDragging ? 'bg-purple-600 border-purple-400 scale-110 shadow-[0_0_60px_rgba(168,85,247,0.4)]' : 'bg-white/5 group-hover:bg-white/10'
+            <div className={`transition-all duration-700 relative ${
+              isDragging ? 'scale-110 shadow-[0_0_80px_rgba(168,85,247,0.5)]' : ''
             }`}>
-              <Upload className={`w-10 h-10 transition-all duration-500 ${isDragging ? 'text-white' : 'text-gray-400'}`} />
+              <div className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center transition-all duration-300 relative z-10 ${
+                isDragging ? 'bg-purple-600 border-purple-400' : 'bg-white/5 group-hover:bg-white/10 group-hover:scale-105'
+              }`}>
+                <Upload className={`w-12 h-12 transition-all duration-500 ${isDragging ? 'text-white' : 'text-gray-400 group-hover:text-purple-400'}`} />
+              </div>
+              <div className="absolute inset-0 bg-purple-500/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity rounded-full"></div>
             </div>
 
-            <div className="text-center z-10 space-y-2">
-              <h3 className="text-white text-2xl font-display font-bold">
-                {isDragging ? 'Solte o arquivo...' : 'Arraste seu vídeo p/ cá'}
+            <div className="text-center z-10 space-y-3">
+              <h3 className="text-white text-3xl font-display font-black tracking-tight uppercase">
+                {isDragging ? 'Solte o arquivo...' : 'Pronto para Viralizar?'}
               </h3>
-              <p className="text-gray-500">
-                Larga aqui links do YouTube, Google Drive, ou arquivos locais
+              <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+                {isDragging ? 'Pode soltar, a IA cuida do resto.' : 'Arraste seu vídeo aqui ou clique no botão abaixo para começar a revolução.'}
               </p>
             </div>
 
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => fileInputRef.current?.click()}
-              className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-all shadow-lg text-lg"
+              className="relative px-12 py-5 bg-white text-black font-black uppercase tracking-tighter rounded-2xl hover:bg-gray-100 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] text-xl overflow-hidden group/btn"
             >
-              Escolher um arquivo
-            </button>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+              <span className="relative z-10 flex items-center gap-3">
+                <FileVideo className="w-6 h-6" /> Importar Vídeo
+              </span>
+            </motion.button>
           </>
         )}
         

@@ -27,6 +27,9 @@ async function startServer() {
   const UPLOAD_DIR = path.join(__dirname, 'uploads');
   const OUTPUT_DIR = path.join(__dirname, 'outputs');
 
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
@@ -37,32 +40,52 @@ async function startServer() {
   const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit
 
   // API Routes
+  app.get('/api/health', (req, res) => res.json({ status: 'ok', engine: 'Xeon' }));
+
   app.post('/api/v1/upload', upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    
-    const { tool, settings } = req.body;
-    const parsedSettings = settings ? JSON.parse(settings) : {};
-    const jobId = Math.random().toString(36).substring(7);
-    const inputPath = req.file.path;
-    const outputFilename = `smartvex_${jobId}_${req.file.originalname.split('.')[0]}.mp4`;
-    const outputPath = path.join(OUTPUT_DIR, outputFilename);
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+      
+      const { tool, settings } = req.body;
+      const parsedSettings = settings ? JSON.parse(settings) : {};
+      const jobId = Math.random().toString(36).substring(7);
+      const inputPath = req.file.path;
+      const outputFilename = `smartvex_${jobId}_${req.file.originalname.split('.')[0]}.mp4`;
+      const outputPath = path.join(OUTPUT_DIR, outputFilename);
 
-    res.json({ jobId, status: 'queued', filename: req.file.originalname });
+      res.json({ jobId, status: 'queued', filename: req.file.originalname });
 
-    // Background Process
-    setTimeout(() => processVideo(jobId, inputPath, outputPath, tool, parsedSettings, io), 500);
+      // Background Process
+      setTimeout(() => processVideo(jobId, inputPath, outputPath, tool, parsedSettings, io), 500);
+    } catch (err: any) {
+      console.error('[UPLOAD_ERROR]', err);
+      res.status(500).json({ error: `Erro interno no processamento: ${err.message}` });
+    }
   });
 
   app.get('/api/v1/download/:jobId', (req, res) => {
-    const { jobId } = req.params;
-    const files = fs.readdirSync(OUTPUT_DIR);
-    const targetFile = files.find(f => f.includes(jobId));
-    
-    if (targetFile) {
-      res.download(path.join(OUTPUT_DIR, targetFile));
-    } else {
-      res.status(404).send('Arquivo não encontrado no cluster.');
+    try {
+      const { jobId } = req.params;
+      const files = fs.readdirSync(OUTPUT_DIR);
+      const targetFile = files.find(f => f.includes(jobId));
+      
+      if (targetFile) {
+        res.download(path.join(OUTPUT_DIR, targetFile));
+      } else {
+        res.status(404).json({ error: 'Arquivo não encontrado no cluster.' });
+      }
+    } catch (err) {
+      res.status(500).json({ error: 'Erro ao acessar o sistema de arquivos.' });
     }
+  });
+
+  // Global Error Handler for API
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[GLOBAL_ERROR]', err);
+    res.status(500).json({ 
+      error: 'Erro crítico na Engine Xeon.',
+      details: err.message
+    });
   });
 
   // Vite integration

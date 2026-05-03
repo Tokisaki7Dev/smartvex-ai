@@ -305,8 +305,16 @@ Obrigado por utilizar o SmartVex!
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Falha no upload para o cluster.');
+        const text = await response.text();
+        let errorMessage = 'Falha no upload para o cluster.';
+        try {
+          const errData = JSON.parse(text);
+          errorMessage = errData.error || errorMessage;
+        } catch (e) {
+          // If not JSON, show first 50 chars of response
+          errorMessage = `Erro do Servidor (${response.status}): ${text.substring(0, 50)}...`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

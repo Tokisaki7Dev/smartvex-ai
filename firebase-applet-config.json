@@ -1,10 +1,10 @@
 {
-  "projectId": "organic-service-490121-q7",
-  "appId": "1:111825943350:web:c8cf75a57ea9c36dc09197",
-  "apiKey": "AIzaSyBQ9A4BSQiQKMTpgkJIkD60_49yIs8iY6g",
-  "authDomain": "organic-service-490121-q7.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-f4add4d1-8632-42b7-a0b0-2b0677d8deb6",
-  "storageBucket": "organic-service-490121-q7.firebasestorage.app",
-  "messagingSenderId": "111825943350",
-  "measurementId": ""
+  "apiKey": "AIzaSyCPj0yoadELu7KB8gR91Gh5vbiHPWgeLAA",
+  "authDomain": "smartvex-ai.firebaseapp.com",
+  "databaseURL": "https://smartvex-ai-default-rtdb.firebaseio.com",
+  "projectId": "smartvex-ai",
+  "storageBucket": "smartvex-ai.firebasestorage.app",
+  "messagingSenderId": "625837372217",
+  "appId": "1:625837372217:web:6e1a8a5f22123352c5aee8",
+  "measurementId": "G-R1HY0K4LM9"
 }

@@ -1,27 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-serif: "Playfair Display", serif;
   
-  --color-brand: #2563eb;
-  --color-brand-dim: rgba(37, 99, 235, 0.1);
-  --color-panel: #0d0d0d;
-  --color-panel-light: #161616;
+  --color-brand: #a855f7;
+  --color-brand-glow: rgba(168, 85, 247, 0.4);
+  --color-brand-secondary: #ec4899;
+  --color-bg-deep: #0a0a0a;
+  --color-panel: #111111;
   --color-border-subtle: rgba(255, 255, 255, 0.08);
-  --color-border-accent: rgba(37, 99, 235, 0.3);
 }
 
 @layer base {
   body {
-    @apply bg-[#050505] text-white selection:bg-brand selection:text-white;
+    @apply bg-bg-deep text-white selection:bg-brand selection:text-white font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
   }
 
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
   }
 
   ::-webkit-scrollbar-track {
@@ -29,6 +34,27 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-all;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-panel border border-border-subtle backdrop-blur-xl;
+  }
+  
+  .glow-text {
+    text-shadow: 0 0 20px var(--color-brand-glow);
+  }
+
+  .scanline {
+    @apply pointer-events-none absolute inset-0 overflow-hidden;
+    background: linear-gradient(
+      to bottom,
+      transparent 50%,
+      rgba(0, 0, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 50;
   }
 }

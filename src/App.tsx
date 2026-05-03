@@ -1,10 +1,10 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import Dashboard from "./components/Dashboard";
+import React from 'react';
+import Dashboard from './components/Dashboard';
 
 export default function App() {
-  return <Dashboard />;
+  return (
+    <div className="w-full h-screen">
+      <Dashboard />
+    </div>
+  );
 }

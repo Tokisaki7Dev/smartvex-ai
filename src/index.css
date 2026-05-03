@@ -1,0 +1,53 @@
+/* Global CSS for SmartVex - SOLVE Design Aesthetic */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@400;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-brand-purple: #6D28D9;
+  --color-brand-blue: #1D4ED8;
+  --color-deep-black: #050508;
+  --color-glass: rgba(255, 255, 255, 0.03);
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050508] text-white antialiased;
+    background-image: 
+      radial-gradient(circle at 0% 0%, rgba(109, 40, 217, 0.08) 0, transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(29, 78, 216, 0.08) 0, transparent 40%);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.05] shadow-2xl;
+  }
+  
+  .neon-glow {
+    box-shadow: 0 0 40px rgba(109, 40, 217, 0.3);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(109, 40, 217, 0.5);
+}

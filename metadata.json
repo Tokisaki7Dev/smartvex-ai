@@ -1,6 +1,5 @@
 {
-  "name": "SmartVex",
-  "description": "Advanced Video Processing SaaS - Enhancing, Cutting, Captions, Compression, and more with real-time feedback.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "name": "SmartVex Ultra",
+  "description": "Premium Video Engine for Creators - AI-Powered Xeon Processing. Aesthetics: SOLVE UI Ultra Dark.",
+  "requestFramePermissions": ["camera", "microphone"]
 }

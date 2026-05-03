@@ -49,22 +49,23 @@ async function startServer() {
   const upload = multer({ storage, limits: { fileSize: 1100 * 1024 * 1024 } }); // 1.1GB limit
 
   // API Routes - Health check FIRST
-  app.get('/ping', (req, res) => res.send('pong'));
-  
   app.get('/api/health', (req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.json({ 
       status: 'ok', 
-      engine: 'Xeon v4.2', 
-      time: new Date().toISOString(),
-      limits: {
-        upload: '1GB'
-      }
+      engine: 'Xeon v4.2 Gold', 
+      node: 'Cluster-01',
+      uptime: process.uptime(),
+      limits: { upload: '1GB' }
     });
   });
 
   app.post('/api/v1/upload', upload.single('file'), (req, res) => {
     try {
-      if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+      if (!req.file) {
+        console.error('[UPLOAD] No file received');
+        return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+      }
       
       const { tool, settings } = req.body;
       const parsedSettings = settings ? JSON.parse(settings) : {};
@@ -73,13 +74,15 @@ async function startServer() {
       const outputFilename = `smartvex_${jobId}_${req.file.originalname.split('.')[0]}.mp4`;
       const outputPath = path.join(OUTPUT_DIR, outputFilename);
 
-      res.json({ jobId, status: 'queued', filename: req.file.originalname });
+      console.log(`[XEON_PIPELINE] New Job: ${jobId} | File: ${req.file.originalname}`);
+
+      res.status(202).json({ jobId, status: 'queued', filename: req.file.originalname });
 
       // Background Process
       setTimeout(() => processVideo(jobId, inputPath, outputPath, tool, parsedSettings, io), 500);
     } catch (err: any) {
       console.error('[UPLOAD_ERROR]', err);
-      res.status(500).json({ error: `Erro interno no processamento: ${err.message}` });
+      res.status(500).json({ error: `Erro interno no cluster: ${err.message}` });
     }
   });
 

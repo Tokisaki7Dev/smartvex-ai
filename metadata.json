@@ -1,5 +1,5 @@
 {
-  "name": "SmartVex Ultra",
-  "description": "Premium Video Engine for Creators - AI-Powered Xeon Processing. Aesthetics: SOLVE UI Ultra Dark.",
+  "name": "Nexus Opus Vex",
+  "description": "High-Performance AI Video Engine. Adaptive Core processing for viral shorts, captions, and b-roll. Optimized for high efficiency.",
   "requestFramePermissions": ["camera", "microphone"]
 }

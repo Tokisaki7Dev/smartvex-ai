@@ -23,9 +23,9 @@ const io = new Server(httpServer, {
   cors: { origin: '*' }
 });
 
-const PORT = 3000;
-const UPLOAD_DIR = '/tmp/nexus/uploads';
-const OUTPUT_DIR = '/tmp/nexus/outputs';
+const PORT = process.env.PORT || 3000;
+const UPLOAD_DIR = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(process.cwd(), 'uploads');
+const OUTPUT_DIR = process.env.NODE_ENV === 'production' ? '/tmp/outputs' : path.join(process.cwd(), 'outputs');
 
 // Ensure directories
 [UPLOAD_DIR, OUTPUT_DIR].forEach(dir => {
@@ -132,9 +132,9 @@ async function startServer() {
   await nextApp.prepare();
   app.all('*', (req, res) => handle(req, res));
   
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log('Nexus Adaptive Engine Active on Port 3000');
-    console.log('Resources Restricted to 1 vCPU / 2GB RAM');
+  httpServer.listen(PORT, '0.0.0.0' as any, () => {
+    console.log(`Nexus Adaptive Engine Active on Port ${PORT}`);
+    console.log(`Resources Mode: ${process.env.NODE_ENV || 'development'}`);
   });
 }
 

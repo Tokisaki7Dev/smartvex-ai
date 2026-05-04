@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Zap, Cpu, History, Search, Sparkles, Wand2, Cloud, Clock, Layers, BarChart3, RotateCw, CheckCircle2, Loader2, FileVideo, Activity

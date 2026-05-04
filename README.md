@@ -9,7 +9,19 @@ SmartVex is a high-performance SaaS platform built for creators who want to domi
 - **Audio Intelligence**: Level up your sound with AI cleaning and synthesis.
 
 ## 🛠 Tech Stack
-- **Frontend**: React 19 + TypeScript + Vite
+- **Frontend & Backend**: Next.js 15 (App Router) + Express + Socket.io
+- **Engine**: SmartVex Adaptive Core (FFmpeg-based)
+- **Styling**: Tailwind CSS 4 + Motion
+- **Deployment**: Optimized for Render Web Services (Node.js)
+
+## Deploying to Render (Web Service)
+
+1. **Service Type**: Web Service
+2. **Build Command**: `npm install && npm run build`
+3. **Start Command**: `npm start`
+4. **Environment Variables**:
+   - `PORT`: 3000 (standard)
+   - `NODE_ENV`: production
 - **Styling**: Tailwind CSS 4 + Motion (Framer Motion)
 - **Database/Auth**: Supabase (PostgreSQL + Auth)
 - **Realtime**: Supabase Live Channels

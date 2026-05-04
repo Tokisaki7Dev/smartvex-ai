@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SmartVex Ultra",
-  description: "Premium Video Engine for Creators - AI-Powered Xeon Processing.",
+  title: "SmartVex AI",
+  description: "High-Performance AI Video Engine. Adaptive Core processing for viral shorts, captions, and b-roll.",
 };
 
 export default function RootLayout({

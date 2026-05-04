@@ -42,31 +42,35 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
   }
 
   return (
-    <div className="flex-1 w-full flex flex-col p-8 overflow-hidden bg-black">
-      <header className="flex items-center justify-between mb-8">
+    <div className="flex-1 w-full flex flex-col p-8 overflow-hidden bg-black rounded-[3rem] border border-white/5 shadow-2xl relative">
+      <div className="absolute top-0 right-0 p-20 opacity-5 pointer-events-none">
+         <Sparkles className="w-64 h-64 text-pink-500 blur-3xl opacity-50" />
+      </div>
+
+      <header className="flex items-center justify-between mb-12 relative z-10">
         <div className="flex items-center gap-6">
-          <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-purple-400 relative">
+          <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center border border-white/10 text-white relative shadow-lg">
             {toolDef && <toolDef.icon className="w-7 h-7 relative z-10" />}
           </div>
           <div>
             <h2 className="text-xl font-display font-black text-white uppercase italic tracking-tighter">{activeJob.name}</h2>
             <div className="flex items-center gap-2 mt-1">
-               <span className="text-[10px] font-mono text-purple-500 font-black uppercase tracking-widest">Pipeline: {selectedTool}</span>
+               <span className="text-[10px] font-mono text-pink-500 font-black uppercase tracking-widest">Pipeline: {selectedTool}</span>
                <div className="w-1 h-1 bg-white/20 rounded-full" />
-               <span className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">ID: {activeJob.id}</span>
+               <span className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Job_ID: {activeJob.id}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex items-center gap-4">
+        <div className="flex items-center gap-6 bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+          <div className="hidden md:flex items-center gap-6">
              {steps.map((step) => (
-                <div key={step.name} className="flex items-center gap-2">
+                <div key={step.name} className="flex items-center gap-3">
                    <div className={`w-2 h-2 rounded-full ${
-                     step.status === 'complete' ? 'bg-green-500' :
-                     step.status === 'active' ? 'bg-purple-500 animate-pulse' : 'bg-gray-800'
+                     step.status === 'complete' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+                     step.status === 'active' ? 'bg-pink-500 animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.6)]' : 'bg-gray-800'
                    }`}></div>
-                   <span className={`text-[9px] font-mono uppercase tracking-widest ${
+                   <span className={`text-[10px] font-mono uppercase tracking-[0.2em] font-black ${
                      step.status === 'pending' ? 'text-gray-700' : 'text-gray-400'
                    }`}>{step.name}</span>
                 </div>
@@ -75,30 +79,34 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 grid grid-cols-12 gap-8">
+      <div className="flex-1 min-h-0 grid grid-cols-12 gap-12 relative z-10">
         {/* VIEWPORT PRINCIPAL */}
         <div className="col-span-8 flex flex-col gap-8">
-          <div className="flex-1 bg-[#050508] rounded-[3rem] border border-white/5 relative overflow-hidden group">
+          <div className="flex-1 bg-[#050508] rounded-[3.5rem] border border-white/5 relative overflow-hidden group shadow-inner">
              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-12">
                {activeJob.status === 'processing' && (
                   <div className="text-center w-full">
                     <div className="relative inline-block mb-12">
-                       <Loader2 className="w-24 h-24 text-purple-500 animate-spin" />
-                       <div className="absolute inset-x-0 -bottom-12 flex justify-center">
-                          <span className="text-[10px] font-mono text-purple-500 uppercase tracking-[0.5em] font-black">AI Computing</span>
+                       <Loader2 className="w-32 h-32 text-pink-500 animate-spin opacity-20" />
+                       <div className="absolute inset-0 flex items-center justify-center">
+                          {toolDef && <toolDef.icon className="w-12 h-12 text-pink-500 animate-pulse" />}
+                       </div>
+                       <div className="absolute inset-x-0 -bottom-16 flex justify-center">
+                          <span className="text-[10px] font-mono text-pink-500 uppercase tracking-[0.5em] font-black">AI Computing Adaptive</span>
                        </div>
                     </div>
                     <div className="text-center w-full max-w-sm mx-auto">
-                       <div className="flex items-end justify-center gap-2 mb-4">
-                          <span className="text-8xl font-display font-black text-white tracking-tighter leading-none">{activeJob.progress}</span>
-                          <span className="text-2xl font-display font-black text-purple-500 leading-none mb-3">%</span>
+                       <div className="flex items-end justify-center gap-2 mb-6">
+                          <span className="text-9xl font-display font-black text-white tracking-tighter leading-none">{activeJob.progress}</span>
+                          <span className="text-3xl font-display font-black text-pink-500 leading-none mb-3">%</span>
                        </div>
-                       <div className="space-y-4">
-                          <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Escalando threads Xeon...</div>
-                          <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                             <div 
-                               style={{ width: `${activeJob.progress}%` }}
-                               className="h-full bg-purple-500"
+                       <div className="space-y-6">
+                          <div className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em] font-black">Escalando Adaptive Core Pipeline...</div>
+                          <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden p-0.5 border border-white/5">
+                             <motion.div 
+                               initial={{ width: 0 }}
+                               animate={{ width: `${activeJob.progress}%` }}
+                               className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-[0_0_15px_rgba(236,72,153,0.5)]"
                              />
                           </div>
                        </div>
@@ -107,23 +115,23 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
                )}
                {activeJob.status === 'completed' && (
                   <div className="text-center">
-                     <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 text-green-500 mb-8 mx-auto">
-                        <CheckCircle2 className="w-10 h-10" />
+                     <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 text-green-500 mb-10 mx-auto shadow-2xl">
+                        <CheckCircle2 className="w-12 h-12" />
                      </div>
-                     <h3 className="text-3xl font-display font-black text-white uppercase italic tracking-tighter mb-4">Processamento Concluído</h3>
-                     <p className="text-sm text-gray-500 font-mono uppercase tracking-widest mb-10">O ativo está pronto para distribuição no cluster.</p>
+                     <h3 className="text-4xl font-display font-black text-white uppercase italic tracking-tighter mb-4">Pipeline Concluída</h3>
+                     <p className="text-sm text-gray-500 font-mono uppercase tracking-[0.3em] mb-12 opacity-70">O ativo foi processado e otimizado pelo Adaptive Core.</p>
                      <button 
                         onClick={() => activeJob.outputUrl && window.open(activeJob.outputUrl)}
-                        className="px-10 py-4 bg-white text-black rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-500 hover:text-white transition-all shadow-2xl"
+                        className="px-12 py-6 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-pink-500 hover:text-white transition-all shadow-[0_30px_60px_rgba(0,0,0,0.5)] hover:scale-105"
                      >
-                        Transferir Vídeo
+                        Transferir Ativo
                      </button>
                   </div>
                )}
                {(activeJob.status === 'queued') && (
                   <div className="text-center">
-                     <History className="w-12 h-12 text-gray-800 animate-bounce mb-6 mx-auto" />
-                     <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">Sincronizando Nodes...</span>
+                     <History className="w-16 h-16 text-gray-800 animate-bounce mb-8 mx-auto opacity-20" />
+                     <span className="text-xs font-mono text-gray-600 uppercase tracking-[0.5em] font-black italic">Sincronizando Nodes Nexus...</span>
                   </div>
                )}
              </div>
@@ -131,34 +139,37 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
         </div>
 
         {/* INFO LATERAL */}
-        <div className="col-span-4 flex flex-col gap-6">
-           <div className="glass-card p-8 rounded-[2.5rem] flex-1">
-              <h3 className="text-[10px] font-mono text-purple-600 font-black uppercase tracking-[0.3em] mb-8">Metadata Process</h3>
+        <div className="col-span-4 flex flex-col gap-8">
+           <div className="bg-white/[0.01] border border-white/[0.03] p-10 rounded-[3rem] flex-1 backdrop-blur-3xl">
+              <h3 className="text-[10px] font-mono text-pink-600 font-black uppercase tracking-[0.4em] mb-10 border-b border-pink-500/10 pb-4">Metadata Engine</h3>
               
-              <div className="space-y-8">
+              <div className="space-y-10">
                  {[
-                   { label: 'Formato Saída', value: 'MP4 / H.264', icon: FileVideo },
-                   { label: 'Otimização', value: 'Threads Máximas', icon: Target },
-                   { label: 'Segurança', value: 'SSL Cluster', icon: Zap },
-                   { label: 'Latência', value: '1.2ms Node', icon: History }
+                   { label: 'Formato Adaptive', value: 'MP4 Ultra / H.264', icon: FileVideo },
+                   { label: 'Otimização Core', value: 'Adaptive Sync', icon: Target },
+                   { label: 'Segurança Node', value: 'Nexus v2.0', icon: Zap },
+                   { label: 'Latência Sync', val: '0.4ms Peak', icon: History }
                  ].map(item => (
-                   <div key={item.label} className="flex items-center gap-4">
-                      <div className="p-2 bg-white/5 rounded-lg text-gray-600"><item.icon className="w-4 h-4" /></div>
+                   <div key={item.label} className="flex items-center gap-5 group">
+                      <div className="p-3 bg-white/5 rounded-2xl text-gray-600 group-hover:text-pink-500 transition-colors group-hover:bg-pink-500/10"><item.icon className="w-5 h-5" /></div>
                       <div>
-                         <div className="text-[9px] font-mono text-gray-700 uppercase tracking-widest leading-none mb-1">{item.label}</div>
-                         <div className="text-[11px] font-bold text-gray-300">{item.value}</div>
+                         <div className="text-[10px] font-mono text-gray-700 uppercase tracking-[0.2em] leading-none mb-2 font-black italic">{item.label}</div>
+                         <div className="text-[12px] font-bold text-gray-300 group-hover:text-white transition-colors">{item.value || (item as any).val}</div>
                       </div>
                    </div>
                  ))}
               </div>
 
-              <div className="mt-12 p-6 bg-purple-500/5 border border-purple-500/10 rounded-2xl">
-                 <div className="flex items-center gap-3 mb-3">
-                    <Sparkles className="w-4 h-4 text-purple-500" />
-                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">IA Feedback</span>
+              <div className="mt-16 p-8 bg-pink-500/[0.02] border border-pink-500/5 rounded-3xl relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Sparkles className="w-12 h-12" />
                  </div>
-                 <p className="text-[10px] text-gray-500 leading-relaxed font-mono">
-                    Qualidade visual incrementada em 40% usando filtros Xeon Gold. Nitidez estabilizada.
+                 <div className="flex items-center gap-4 mb-4">
+                    <Sparkles className="w-5 h-5 text-pink-500" />
+                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">IA Nexus Report</span>
+                 </div>
+                 <p className="text-[11px] text-gray-500 leading-relaxed font-mono uppercase tracking-widest opacity-80">
+                    Processamento adaptativo concluído com 98% de eficiência no cluster Nexus. Estabilidade garantida.
                  </p>
               </div>
            </div>

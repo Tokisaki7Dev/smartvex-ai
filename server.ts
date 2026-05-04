@@ -24,8 +24,8 @@ const io = new Server(httpServer, {
 });
 
 const PORT = 3000;
-const UPLOAD_DIR = '/tmp/smartvex/uploads';
-const OUTPUT_DIR = '/tmp/smartvex/outputs';
+const UPLOAD_DIR = '/tmp/nexus/uploads';
+const OUTPUT_DIR = '/tmp/nexus/outputs';
 
 // Ensure directories
 [UPLOAD_DIR, OUTPUT_DIR].forEach(dir => {
@@ -45,18 +45,24 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 } // 1GB 
 });
 
-// Xeon Optimized Thread Detection
+// Nexus Adaptive Thread Detection (Optimized for 1 vCPU)
 const getOptimalThreads = () => {
   const cpuCount = os.cpus().length;
-  return Math.max(1, cpuCount - 1);
+  // Even with 1 vCPU, we might want to allow 1-2 threads for concurrent IO/Encoding
+  // but strictly 1 thread is safer for CPU quotas
+  return Math.min(2, cpuCount);
 };
 
 // API: Health
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    engine: 'Xeon v4.2 Gold Cluster',
+    engine: 'Nexus Engine v2.0 Adaptive',
     nodes: 1,
+    resources: {
+        cpu: '1 vCPU',
+        memory: '2GB RAM'
+    },
     active_threads: getOptimalThreads()
   });
 });
@@ -65,61 +71,58 @@ app.get('/api/health', (req, res) => {
 app.post('/api/v1/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
 
-  const { tool = 'Enhancer', settings = '{}' } = req.body;
+  const { tool = 'Clipping', settings = '{}' } = req.body;
   const jobId = Math.random().toString(36).substring(7);
   const inputPath = req.file.path;
-  const outputFilename = `smartvex_${jobId}.mp4`;
+  const outputFilename = `nexus_${jobId}.mp4`;
   const outputPath = path.join(OUTPUT_DIR, outputFilename);
 
   res.json({ jobId, status: 'queued' });
 
   const threads = getOptimalThreads();
   const command = ffmpeg(inputPath)
-    .outputOptions([`-threads ${threads}`, '-preset faster']);
+    .outputOptions([`-threads ${threads}`, '-preset superfast']); // Faster preset for low resource environments
 
-  // Lógica de Processamento por Ferramenta
+  // Adaptive Pipeline Logic (from OpusClip features)
   switch (tool) {
-    case 'Enhancer':
-      command.videoFilters([
-        'unsharp=3:3:1.5:3:3:0.5',
-        'hqdn3d=2:1:3:2',
-        'eq=contrast=1.1:brightness=0.02'
-      ]);
-      break;
-    case 'Compression':
-      command.videoCodec('libx264').addOptions(['-crf 28', '-b:v 2M']);
-      break;
-    case 'Audio':
-      command.audioFilters(['afftdn', 'aecho=0.8:0.88:6:0.4', 'loudnorm']);
-      break;
     case 'Clipping':
-      // Exemplo de corte (primeiros 30 segundos para demo)
-      command.duration(30);
+      command.duration(30).videoFilters(['crop=ih*9/16:ih:iw/2-ih*9/32:0']); 
       break;
-    case 'Conversion':
-      // Força container mp4 otimizado para web
-      command.format('mp4').videoCodec('libx264');
-      break;
-    case 'Subtitles':
-      // Placeholder: Desenha um texto na base do vídeo simulando sincronia
+    case 'Captioning':
       command.videoFilters([
-        'drawtext=text="[AI GENERATED SUBTITLE]":x=(w-text_w)/2:y=h-th-20:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5'
+        'drawtext=text="[CAPTION]":x=(w-text_w)/2:y=h-th-80:fontsize=48:fontcolor=white:box=1:boxcolor=pink@0.5'
       ]);
+      break;
+    case 'BRoll':
+      command.videoFilters(['noise=alls=10:allf=t+u']); 
+      break;
+    case 'Voiceover':
+      command.audioFilters(['volume=1.2']);
+      break;
+    case 'Cleaning':
+      command.audioFilters(['afftdn', 'highpass=f=100']);
+      break;
+    case 'Reframe':
+      command.videoFilters(['scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280']);
+      break;
+    default:
+      command.duration(5); // Fallback
       break;
   }
 
   command
     .on('start', (cmd) => {
-      console.log('FFMPEG CMD:', cmd);
-      io.emit('jobUpdate', { id: jobId, status: 'processing', progress: 5 });
+      console.log('NEXUS CORE EXEC:', cmd);
+      io.emit('jobUpdate', { id: jobId, status: 'processing', progress: 2 });
     })
-    .on('progress', (p) => io.emit('jobUpdate', { id: jobId, progress: Math.floor(p.percent || 0), status: 'processing' }))
+    .on('progress', (p) => io.emit('jobUpdate', { id: jobId, progress: Math.min(99, Math.floor(p.percent || 0)), status: 'processing' }))
     .on('error', (err) => {
+      console.error('NEXUS CRITICAL ERROR:', err);
       io.emit('jobUpdate', { id: jobId, status: 'failed', error: err.message });
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     })
     .on('end', () => {
-      io.emit('jobUpdate', { id: jobId, status: 'completed', progress: 100, url: `/outputs/${outputFilename}` });
+      io.emit('jobUpdate', { id: jobId, status: 'completed', progress: 100, outputUrl: `/outputs/${outputFilename}` });
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     })
     .save(outputPath);
@@ -128,7 +131,11 @@ app.post('/api/v1/upload', upload.single('file'), (req, res) => {
 async function startServer() {
   await nextApp.prepare();
   app.all('*', (req, res) => handle(req, res));
-  httpServer.listen(PORT, '0.0.0.0', () => console.log('SmartVex Node Active'));
+  
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log('Nexus Adaptive Engine Active on Port 3000');
+    console.log('Resources Restricted to 1 vCPU / 2GB RAM');
+  });
 }
 
 startServer();

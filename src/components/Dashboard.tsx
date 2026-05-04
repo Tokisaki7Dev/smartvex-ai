@@ -81,7 +81,7 @@ export default function Dashboard() {
               <Zap className="w-6 h-6 text-white" />
            </div>
            <div>
-              <h1 className="text-xl font-display font-black tracking-tighter italic leading-none">OPUS_VEX</h1>
+              <h1 className="text-xl font-display font-black tracking-tighter italic leading-none">SmartVex AI</h1>
               <span className="text-[9px] font-mono text-pink-500 uppercase tracking-[0.4em] font-black">Adaptive_Core</span>
            </div>
         </div>
@@ -209,7 +209,7 @@ export default function Dashboard() {
                              className="inline-flex items-center gap-3 px-5 py-2 bg-pink-500/5 border border-pink-500/20 rounded-full text-[10px] font-mono font-black uppercase tracking-[0.4em] text-pink-400"
                            >
                              <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
-                             Nexus Engine v2.0 Adaptive Active
+                             SmartVex AI Engine v2.0 Adaptive Active
                            </motion.div>
                            <h2 className="text-8xl font-display font-black uppercase italic tracking-tighter leading-none">
                              Crie Vídeos Virais <br />

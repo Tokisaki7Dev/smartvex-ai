@@ -45,7 +45,7 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 } // 1GB 
 });
 
-// Nexus Adaptive Thread Detection (Optimized for 1 vCPU)
+// SmartVex Adaptive Thread Detection (Optimized for 1 vCPU)
 const getOptimalThreads = () => {
   const cpuCount = os.cpus().length;
   // Even with 1 vCPU, we might want to allow 1-2 threads for concurrent IO/Encoding
@@ -57,7 +57,7 @@ const getOptimalThreads = () => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    engine: 'Nexus Engine v2.0 Adaptive',
+    engine: 'SmartVex AI Engine v2.0 Adaptive',
     nodes: 1,
     resources: {
         cpu: '1 vCPU',
@@ -74,7 +74,7 @@ app.post('/api/v1/upload', upload.single('file'), (req, res) => {
   const { tool = 'Clipping', settings = '{}' } = req.body;
   const jobId = Math.random().toString(36).substring(7);
   const inputPath = req.file.path;
-  const outputFilename = `nexus_${jobId}.mp4`;
+  const outputFilename = `smartvex_${jobId}.mp4`;
   const outputPath = path.join(OUTPUT_DIR, outputFilename);
 
   res.json({ jobId, status: 'queued' });
@@ -112,12 +112,12 @@ app.post('/api/v1/upload', upload.single('file'), (req, res) => {
 
   command
     .on('start', (cmd) => {
-      console.log('NEXUS CORE EXEC:', cmd);
+      console.log('SMARTVEX CORE EXEC:', cmd);
       io.emit('jobUpdate', { id: jobId, status: 'processing', progress: 2 });
     })
     .on('progress', (p) => io.emit('jobUpdate', { id: jobId, progress: Math.min(99, Math.floor(p.percent || 0)), status: 'processing' }))
     .on('error', (err) => {
-      console.error('NEXUS CRITICAL ERROR:', err);
+      console.error('SMARTVEX CRITICAL ERROR:', err);
       io.emit('jobUpdate', { id: jobId, status: 'failed', error: err.message });
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     })
@@ -133,7 +133,7 @@ async function startServer() {
   app.all('*', (req, res) => handle(req, res));
   
   httpServer.listen(PORT, '0.0.0.0' as any, () => {
-    console.log(`Nexus Adaptive Engine Active on Port ${PORT}`);
+    console.log(`SmartVex AI Engine Active on Port ${PORT}`);
     console.log(`Resources Mode: ${process.env.NODE_ENV || 'development'}`);
   });
 }

@@ -132,7 +132,7 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
                {(activeJob.status === 'queued') && (
                   <div className="text-center">
                      <History className="w-16 h-16 text-gray-800 animate-bounce mb-8 mx-auto opacity-20" />
-                     <span className="text-xs font-mono text-gray-600 uppercase tracking-[0.5em] font-black italic">Sincronizando Nodes Nexus...</span>
+                     <span className="text-xs font-mono text-gray-600 uppercase tracking-[0.5em] font-black italic">Sincronizando Nodes SmartVex...</span>
                   </div>
                )}
              </div>
@@ -148,7 +148,7 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
                  {[
                    { label: 'Formato Adaptive', value: 'MP4 Ultra / H.264', icon: FileVideo },
                    { label: 'Otimização Core', value: 'Adaptive Sync', icon: Target },
-                   { label: 'Segurança Node', value: 'Nexus v2.0', icon: Zap },
+                   { label: 'Segurança Node', value: 'SmartVex v2.0', icon: Zap },
                    { label: 'Latência Sync', val: '0.4ms Peak', icon: History }
                  ].map(item => (
                    <div key={item.label} className="flex items-center gap-5 group">
@@ -167,10 +167,10 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
                  </div>
                  <div className="flex items-center gap-4 mb-4">
                     <Sparkles className="w-5 h-5 text-pink-500" />
-                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">IA Nexus Report</span>
+                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">IA SmartVex Report</span>
                  </div>
                  <p className="text-[11px] text-gray-500 leading-relaxed font-mono uppercase tracking-widest opacity-80">
-                    Processamento adaptativo concluído com 98% de eficiência no cluster Nexus. Estabilidade garantida.
+                    Processamento adaptativo concluído com 98% de eficiência no cluster SmartVex. Estabilidade garantida.
                  </p>
               </div>
            </div>

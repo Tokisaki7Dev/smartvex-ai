@@ -1,5 +1,5 @@
 {
-  "name": "Nexus Opus Vex",
+  "name": "SmartVex AI",
   "description": "High-Performance AI Video Engine. Adaptive Core processing for viral shorts, captions, and b-roll. Optimized for high efficiency.",
   "requestFramePermissions": ["camera", "microphone"]
 }

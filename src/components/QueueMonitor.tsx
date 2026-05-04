@@ -42,7 +42,7 @@ export function QueueMonitor({ jobs, logs, selectedJobId, onSelectJob, onDownloa
             Ativos no Cache
           </h3>
           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-             <span className="text-[8px] font-mono text-gray-600 uppercase font-black">Node: <span className="text-white">NEXUS-01</span></span>
+             <span className="text-[8px] font-mono text-gray-600 uppercase font-black">Node: <span className="text-white">SMARTVEX-01</span></span>
           </div>
         </div>
 

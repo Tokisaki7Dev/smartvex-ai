@@ -7,7 +7,11 @@ import fs from 'fs';
 import os from 'os';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from 'ffmpeg-static';
-import { createServer as createViteServer } from 'vite';
+import next from 'next';
+
+const dev = process.env.NODE_ENV !== 'production';
+const nextApp = next({ dev });
+const handle = nextApp.getRequestHandler();
 
 if (ffmpegInstaller) {
   ffmpeg.setFfmpegPath(ffmpegInstaller);
@@ -122,14 +126,8 @@ app.post('/api/v1/upload', upload.single('file'), (req, res) => {
 });
 
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
-  }
+  await nextApp.prepare();
+  app.all('*', (req, res) => handle(req, res));
   httpServer.listen(PORT, '0.0.0.0', () => console.log('SmartVex Node Active'));
 }
 

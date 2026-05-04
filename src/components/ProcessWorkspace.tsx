@@ -113,7 +113,7 @@ export function ProcessWorkspace({ activeJob, selectedTool }: ProcessWorkspacePr
                      <h3 className="text-3xl font-display font-black text-white uppercase italic tracking-tighter mb-4">Processamento Concluído</h3>
                      <p className="text-sm text-gray-500 font-mono uppercase tracking-widest mb-10">O ativo está pronto para distribuição no cluster.</p>
                      <button 
-                        onClick={() => activeJob.url && window.open(activeJob.url)}
+                        onClick={() => activeJob.outputUrl && window.open(activeJob.outputUrl)}
                         className="px-10 py-4 bg-white text-black rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-500 hover:text-white transition-all shadow-2xl"
                      >
                         Transferir Vídeo

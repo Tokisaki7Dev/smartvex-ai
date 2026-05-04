@@ -1,25 +1,24 @@
 {
-  "name": "react-example",
+  "name": "smartvex-ultra",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "next dev",
+    "build": "next build",
     "start": "node server.ts",
-    "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "next lint"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
-    "@tailwindcss/vite": "^4.1.14",
     "@types/express": "^4.17.21",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/multer": "^2.1.0",
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.21",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -29,13 +28,16 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "multer": "^1.4.4",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1",
+    "next": "^16.2.4",
+    "postcss": "^8.5.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
-    "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "typescript": "~5.8.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "tailwindcss": "^4.2.4"
   }
 }
